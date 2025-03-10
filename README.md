@@ -27,7 +27,7 @@ Ensure you have the following installed:
 ### Setup
 ```sh
 # Clone the repository
-git clone https://github.com/yourusername/OpenSSE-Guard.git
+git clone https://github.com/livio-ch/OpenSSE-Guard.git
 cd OpenSSE-Guard
 
 # Install dependencies
@@ -42,7 +42,7 @@ python app.py
 
 ### 2️⃣ **Run mitmproxy with the script**
 ```sh
-mitmdump -s proxy_script.py
+mitmproxy -s api_call_intercept.py
 ```
 
 ### 3️⃣ **Configure your network to use mitmproxy** (for interception)
