@@ -29,12 +29,17 @@ def normalize_url(url):
     parsed = urlparse(url)
     return f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
 
-@app.route('/checkUrl', methods=['GET'])
+@app.route('/checkUrl', methods=['POST'])
 def check_url():
-    url = request.args.get('url')
+    # Print the full JSON payload received
+    data = request.get_json()
+    logging.info(f"Received data: {data}")
+
+    # Get the URL from the posted data
+    url = data.get('url')
 
     if not url:
-        return jsonify({'status': 'error', 'message': 'Missing URL'}), 400
+        return jsonify({'status': 'error', 'message': 'Missing URL'}), 200
 
     url = normalize_url(url)
     domain = get_domain(url)
@@ -45,17 +50,17 @@ def check_url():
     # 1️⃣ Blocked URL prefix check
     if any(url.startswith(prefix) for prefix in blocked_url_prefixes):
         logging.info(f"Blocked URL: {url} (matched prefix)")
-        return jsonify({'status': 'blocked', 'message': 'Blocked by URL prefix'}), 400
+        return jsonify({'status': 'blocked', 'message': 'Blocked by URL prefix'}), 200
 
     # 2️⃣ Blocked exact hostname
     if hostname in blocked_hostnames:
         logging.info(f"Blocked URL: {url} (matched hostname)")
-        return jsonify({'status': 'blocked', 'message': 'Blocked by exact hostname'}), 400
+        return jsonify({'status': 'blocked', 'message': 'Blocked by exact hostname'}), 200
 
     # 3️⃣ Blocked domain (includes subdomains)
     if domain in blocked_domains:
         logging.info(f"Blocked URL: {url} (matched domain)")
-        return jsonify({'status': 'blocked', 'message': 'Blocked by domain (includes subdomains)'}), 400
+        return jsonify({'status': 'blocked', 'message': 'Blocked by domain (includes subdomains)'}), 200
 
     # 4️⃣ Redirected URL prefix
     if any(url.startswith(prefix) for prefix in redirect_url_prefixes):
