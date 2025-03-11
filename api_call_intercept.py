@@ -1,15 +1,39 @@
 import logging
 import mitmproxy
-from mitmproxy import http, tls
+from mitmproxy import http, tls, ctx
+import requests
+
 
 # Replace with your Flask API endpoint
 API_URL = "http://127.0.0.1:5000/checkUrl"
 
-# Set up logging
+# Configure logging; mitmproxy’s ctx.log will also print to the console.
 logging.basicConfig(level=logging.INFO)
 
-#def tls_clienthello(flow):
+def tls_clienthello(flow):
+    """
+    This hook is called when the client sends the TLS ClientHello.
+    It extracts the SNI (hostname) and sends it to your Flask API.
+    If the API returns a status of "exclude-tls", TLS interception is skipped.
+    """
+    host = flow.client_hello.sni
+    if not host:
+        ctx.log.info("No SNI found; proceeding with TLS interception.")
+        return
 
+    try:
+        # Send the SNI (host) to your Flask API.
+        response = requests.post(API_URL, json={"host": host}, timeout=5)
+        ctx.log.info(f"API response for {host}: {response.text}")
+
+        if response.status_code == 200:
+            data = response.json()
+            # Check for the "exclude-tls" status.
+            if data.get("status") == "exclude-tls":
+                ctx.log.info(f"Excluding TLS decryption for {host} as per API response.")
+                flow.ignore_connection = True
+    except Exception as e:
+        ctx.log.error(f"Error contacting API for {host}: {e}")
 
 
 def request(flow: http.HTTPFlow):
