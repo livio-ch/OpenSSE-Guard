@@ -5,6 +5,7 @@ cursor = conn.cursor()
 
 # Insert blocked entries
 cursor.execute("INSERT INTO blocked_urls (type, value) VALUES ('domain', 'blocked.com')")
+cursor.execute("INSERT INTO blocked_urls (type, value) VALUES ('domain', 'blockedsite.com')")
 cursor.execute("INSERT INTO blocked_urls (type, value) VALUES ('hostname', 'www.example.com')")
 cursor.execute("INSERT INTO blocked_urls (type, value) VALUES ('url_prefix', 'https://www.dhl.de/de/privatkunden/')")
 

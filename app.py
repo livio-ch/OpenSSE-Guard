@@ -2,7 +2,9 @@ import logging
 import sqlite3
 from flask import Flask, request, jsonify
 import tldextract
+import re
 from urllib.parse import urlparse
+
 
 app = Flask(__name__)
 
@@ -96,10 +98,29 @@ def check_url():
     data = request.get_json()
     logging.info(f"Received data: {data}")
 
-    # If the payload contains 'host', process it
+    # Handle the request for a single hostname only
     if "host" in data:
-        sni_hostname = data.get("host")
-        block_status = get_block_status(f"https://{sni_hostname}")  # Ensure the host is treated like a URL
+        hosts = data.get("host")
+
+        # If it's a list of hosts, return an error
+        if isinstance(hosts, list):
+            logging.error("Multiple hostnames not allowed")
+            return jsonify({
+                'status': 'error',
+                'message': 'Multiple hostnames are not allowed in the request'
+            }), 400
+
+        # If it's a single hostname, proceed with validation
+        sni_hostname = hosts
+        # Validate hostname format
+        if not re.match(r'^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(:\d+)?$', sni_hostname):
+            logging.error(f"Invalid hostname format: {sni_hostname}")
+            return jsonify({
+                'status': 'error',
+                'message': 'Invalid hostname format'
+            }), 400
+
+        block_status = get_block_status(f"https://{sni_hostname}")
 
         if block_status:
             logging.info(f"Blocked hostname: {sni_hostname}")
@@ -109,10 +130,19 @@ def check_url():
             logging.info(f"TLS excluded hostname: {sni_hostname}")
             return jsonify({'status': 'exclude-tls', 'message': 'TLS excluded hostname'}), 200
 
+        proxy = get_redirect_proxy(f"https://{sni_hostname}")
+        if proxy:
+            logging.info(f"Redirected hostname: {sni_hostname} to {proxy}")
+            return jsonify({
+                'status': 'redirected',
+                'message': 'Redirected by database rule',
+                'proxy': proxy
+            }), 200
+
         logging.info(f"TLS allowed for hostname: {sni_hostname}")
         return jsonify({'status': 'allowed', 'message': 'TLS allowed'}), 200
 
-    # Otherwise, process the payload as a full URL check.
+    # Process the full URL check
     url = data.get('url')
     if not url:
         return jsonify({'status': 'error', 'message': 'Missing URL or host'}), 400
@@ -130,10 +160,15 @@ def check_url():
     proxy = get_redirect_proxy(url)
     if proxy:
         logging.info(f"Redirecting URL: {url} to {proxy}")
-        return jsonify({'status': 'redirected', 'message': 'Redirected by database rule', 'proxy': proxy}), 200
+        return jsonify({
+            'status': 'redirected',
+            'message': 'Redirected by database rule',
+            'proxy': proxy
+        }), 200
 
     logging.info(f"Allowed URL: {url}")
     return jsonify({'status': 'allowed', 'message': 'Access granted'}), 200
+
 
 @app.errorhandler(Exception)
 def handle_exception(e):

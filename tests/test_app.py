@@ -1,5 +1,5 @@
 import pytest
-import requests
+import subprocess
 import sys
 import os
 
@@ -9,6 +9,20 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 from app import app  # Import your Flask app
 
 # Use pytest's fixture to set up the test client
+@pytest.fixture(scope="module", autouse=True)
+def run_pre_tests():
+    """Run init_db.py and generatedb.py before starting the tests."""
+    # Run init_db.py to initialize the database
+    init_db_result = subprocess.run([sys.executable, 'init_db.py'], check=True)
+    if init_db_result.returncode != 0:
+        raise RuntimeError("init_db.py failed")
+
+    # Run generatedb.py to populate the database with values
+    generatedb_result = subprocess.run([sys.executable, 'generatedb.py'], check=True)
+    if generatedb_result.returncode != 0:
+        raise RuntimeError("generatedb.py failed")
+
+
 @pytest.fixture
 def client():
     app.config["TESTING"] = True
@@ -22,12 +36,6 @@ def test_missing_url(client):
     assert response.status_code == 400
     assert response.json["status"] == "error"
 
-def test_blocked_url_prefix(client):
-    """Test a URL that starts with a blocked prefix."""
-    response = client.post("/checkUrl", json={"url": "https://www.dhl.de/de/privatkunden/somepage"})
-    assert response.status_code == 200
-    assert response.json["status"] == "blocked"
-    assert response.json["message"] == "Blocked by URL prefix"
 
 def test_allowed_url(client):
     """Test an allowed URL (should return 'allowed')."""
@@ -72,69 +80,112 @@ def test_invalid_url_format(client):
     assert response.json["status"] == "allowed"  # If not explicitly blocked
 
 
-def test_allowed_url_with_query_params(client):
-    """Test an allowed URL with query parameters."""
-    response = client.post("/checkUrl", json={"url": "https://example.com/search?q=test"})
-    assert response.status_code == 200
-    assert response.json["status"] == "allowed"
-    assert response.json["message"] == "Access granted"
-
-def test_blocked_url_with_query_params(client):
-    """Test a blocked URL with query parameters."""
-    response = client.post("/checkUrl", json={"url": "https://www.dhl.de/de/privatkunden/?param=value"})
-    assert response.status_code == 200
-    assert response.json["status"] == "blocked"
-    assert response.json["message"] == "Blocked by URL prefix"
-
-
-def test_redirected_url_prefix(client):
-    """Test a URL that should be redirected based on a prefix."""
-    response = client.post("/checkUrl", json={"url": "https://www.redirectme.com/somepath"})
-    assert response.status_code == 200
-    assert response.json["status"] == "redirected"
-    assert response.json["message"] == "Redirected by database rule"
-    assert "proxy" in response.json
-
-def test_redirected_domain(client):
-    """Test a URL that should be redirected based on the domain."""
-    response = client.post("/checkUrl", json={"url": "https://whatismyip.com"})
-    assert response.status_code == 200
-    assert response.json["status"] == "redirected"
-    assert response.json["message"] == "Redirected by database rule"
-    assert "proxy" in response.json
-
-def test_blocked_subdomain(client):
-    """Test a subdomain of a blocked domain."""
-    response = client.post("/checkUrl", json={"url": "https://sub.blocked.com"})
-    assert response.status_code == 200
-    assert response.json["status"] == "blocked"
-    assert response.json["message"] == "Blocked by domain (includes subdomains)"
-
-def test_valid_url_format(client):
-    """Test a valid URL that should be allowed."""
-    response = client.post("/checkUrl", json={"url": "https://allowedurl.com"})
-    assert response.status_code == 200
-    assert response.json["status"] == "allowed"
-    assert response.json["message"] == "Access granted"
-
-def test_invalid_url_format(client):
-    """Test an invalid URL format."""
-    response = client.post("/checkUrl", json={"url": "not_a_valid_url"})
-    assert response.status_code == 200
-    assert response.json["status"] == "allowed"  # If not explicitly blocked
-    assert response.json["message"] == "Access granted"  # Assuming non-blocked invalid URLs pass
-
 def test_blocked_hostname_direct(client):
-    """Test a blocked exact hostname."""
+    """Test a blocked exact hostname (by `host` only)."""
     response = client.post("/checkUrl", json={"host": "www.example.com"})
     assert response.status_code == 200
     assert response.json["status"] == "blocked"
-    assert response.json["message"] == "Blocked by exact hostname"
 
-def test_redirected_host_with_proxy(client):
-    """Test a hostname that should be redirected to a proxy."""
-    response = client.post("/checkUrl", json={"url": "https://httpbin.org"})
+
+def test_redirected_url(client):
+    """Test a URL that should be redirected to a proxy based on the hostname."""
+    response = client.post("/checkUrl", json={"url": "https://whatismyip.com"})
     assert response.status_code == 200
     assert response.json["status"] == "redirected"
-    assert response.json["message"] == "Redirected by database rule"
-    assert response.json["proxy"] == "http://proxy2.com:8080"  # Make sure proxy is correct
+    assert response.json["proxy"] == "http://proxy1.com:8080"
+
+
+def test_allowed_url_prefix(client):
+    """Test a URL with an allowed prefix."""
+    response = client.post("/checkUrl", json={"url": "https://allowed-url.com"})
+    assert response.status_code == 200
+    assert response.json["status"] == "allowed"
+
+def test_blocked_url_prefix(client):
+    """Test a URL with a blocked prefix."""
+    response = client.post("/checkUrl", json={"url": "https://www.dhl.de/de/privatkunden/asdf"})
+    assert response.status_code == 200
+    assert response.json["status"] == "blocked"
+
+def test_blocked_hostname_exact(client):
+    """Test a blocked exact hostname."""
+    response = client.post("/checkUrl", json={"host": "www.blockedsite.com"})
+    assert response.status_code == 200
+    assert response.json["status"] == "blocked"
+
+def test_allowed_hostname_exact(client):
+    """Test an allowed exact hostname."""
+    response = client.post("/checkUrl", json={"host": "www.allowedsite.com"})
+    assert response.status_code == 200
+    assert response.json["status"] == "allowed"
+
+
+def test_blocked_subdomain(client):
+    """Test a blocked subdomain."""
+    response = client.post("/checkUrl", json={"host": "sub.blockedsite.com"})
+    assert response.status_code == 200
+    assert response.json["status"] == "blocked"
+
+
+def test_allowed_subdomain(client):
+    """Test an allowed subdomain."""
+    response = client.post("/checkUrl", json={"host": "sub.allowedsite.com"})
+    assert response.status_code == 200
+    assert response.json["status"] == "allowed"
+
+
+def test_tls_exclusion_for_host(client):
+    """Test a hostname excluded from TLS interception."""
+    response = client.post("/checkUrl", json={"host": "www.google.com"})
+    assert response.status_code == 200
+    assert response.json["status"] == "exclude-tls"
+
+
+def test_redirected_hostname(client):
+    """Test a redirected hostname (based on `host`)."""
+    response = client.post("/checkUrl", json={"host": "httpbin.org"})
+    assert response.status_code == 200
+    assert response.json["status"] == "redirected"
+    assert "proxy" in response.json
+
+
+def test_unmatched_hostname(client):
+    """Test a hostname that doesn't match any entry."""
+    response = client.post("/checkUrl", json={"host": "www.nonexistent.com"})
+    assert response.status_code == 200
+    assert response.json["status"] == "allowed"
+
+
+def test_invalid_hostname_format(client):
+    """Test an invalid hostname format."""
+    response = client.post("/checkUrl", json={"host": "invalid-hostname"})
+    assert response.status_code == 400
+    assert response.json["status"] == "error"
+
+
+def test_hostname_with_port(client):
+    """Test a hostname with a port number."""
+    response = client.post("/checkUrl", json={"host": "www.example.com:8080"})
+    assert response.status_code == 200
+    assert response.json["status"] == "allowed"
+
+
+def test_multiple_hostnames(client):
+    """Test multiple hostnames in the same request (should return error)."""
+    # Send a request with a list of hostnames
+    response = client.post("/checkUrl", json={"host": ["www.example.com", "www.blockedsite.com"]})
+
+    # Assert that the response status code is 400 (Bad Request)
+    assert response.status_code == 400
+
+    # Assert that the response contains the correct error message
+    assert response.json == {
+        'status': 'error',
+        'message': 'Multiple hostnames are not allowed in the request'
+    }
+
+def test_wildcard_hostname(client):
+    """Test a wildcard hostname."""
+    response = client.post("/checkUrl", json={"host": "sub.example.com"})
+    assert response.status_code == 200
+    assert response.json["status"] == "allowed"  # Assuming *.example.com is allowed

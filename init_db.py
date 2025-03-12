@@ -3,10 +3,21 @@ import sqlite3
 DB_PATH = "url_filter.db"  # Ensure this matches your main script
 
 def init_db():
-    """Create tables if they do not exist."""
+    """Clear the database and create tables if they do not exist."""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
+    # Clear existing entries from tables (optional: you can drop tables if you prefer)
+    cursor.execute("DELETE FROM blocked_urls")  # Clear all records from blocked_urls
+    cursor.execute("DELETE FROM redirect_urls")  # Clear all records from redirect_urls
+    cursor.execute("DELETE FROM tls_excluded_hosts")  # Clear all records from tls_excluded_hosts
+
+    # You can also drop the tables entirely if you want to re-create them
+    # cursor.execute("DROP TABLE IF EXISTS blocked_urls")
+    # cursor.execute("DROP TABLE IF EXISTS redirect_urls")
+    # cursor.execute("DROP TABLE IF EXISTS tls_excluded_hosts")
+
+    # Create tables if they don't exist
     cursor.executescript('''
         CREATE TABLE IF NOT EXISTS blocked_urls (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -26,6 +37,7 @@ def init_db():
             hostname TEXT NOT NULL UNIQUE
         );
     ''')
+
     conn.commit()
     conn.close()
     print("Database initialized successfully!")
