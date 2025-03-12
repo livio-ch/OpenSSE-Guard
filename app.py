@@ -96,17 +96,23 @@ def check_url():
     data = request.get_json()
     logging.info(f"Received data: {data}")
 
-    # 1. If payload contains 'host', check TLS exclusion
+    # If the payload contains 'host', process it
     if "host" in data:
         sni_hostname = data.get("host")
+        block_status = get_block_status(f"https://{sni_hostname}")  # Ensure the host is treated like a URL
+
+        if block_status:
+            logging.info(f"Blocked hostname: {sni_hostname}")
+            return jsonify(block_status), 200
+
         if is_tls_excluded(sni_hostname):
             logging.info(f"TLS excluded hostname: {sni_hostname}")
             return jsonify({'status': 'exclude-tls', 'message': 'TLS excluded hostname'}), 200
-        else:
-            logging.info(f"TLS allowed for hostname: {sni_hostname}")
-            return jsonify({'status': 'allowed', 'message': 'TLS allowed'}), 200
 
-    # 2. Otherwise, process the payload as a full URL check.
+        logging.info(f"TLS allowed for hostname: {sni_hostname}")
+        return jsonify({'status': 'allowed', 'message': 'TLS allowed'}), 200
+
+    # Otherwise, process the payload as a full URL check.
     url = data.get('url')
     if not url:
         return jsonify({'status': 'error', 'message': 'Missing URL or host'}), 400
