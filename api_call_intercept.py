@@ -3,7 +3,6 @@ import mitmproxy
 from mitmproxy import http, tls, ctx
 import requests
 
-
 # Replace with your Flask API endpoint
 API_URL = "http://127.0.0.1:5000/checkUrl"
 
@@ -35,7 +34,6 @@ def tls_clienthello(flow):
     except Exception as e:
         ctx.log.error(f"Error contacting API for {host}: {e}")
 
-
 def request(flow: http.HTTPFlow):
     """
     This function intercepts requests, sends them to the Flask API for validation,
@@ -43,6 +41,7 @@ def request(flow: http.HTTPFlow):
     """
     url = flow.request.pretty_url
     logging.info(f"Intercepted request: {url}")  # Log intercepted URL
+
     try:
         # Send intercepted URL to Flask API
         response = requests.post(API_URL, json={"url": url}, timeout=5)
