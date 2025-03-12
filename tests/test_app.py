@@ -92,7 +92,7 @@ def test_redirected_url(client):
     response = client.post("/checkUrl", json={"url": "https://whatismyip.com"})
     assert response.status_code == 200
     assert response.json["status"] == "redirected"
-    assert response.json["proxy"] == "http://proxy1.com:8080"
+    assert response.json["proxy"] == "http://localhost:8081"
 
 
 def test_allowed_url_prefix(client):
