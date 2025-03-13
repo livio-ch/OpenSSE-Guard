@@ -2,7 +2,9 @@ import logging
 import mitmproxy
 from mitmproxy import http, tls, ctx
 import requests
-
+import magic
+import hashlib
+import time
 # Replace with your Flask API endpoint
 API_URL = "http://127.0.0.1:5000/checkUrl"
 
@@ -88,7 +90,29 @@ def send_error_response(flow):
         500, b"Proxy error", {"Content-Type": "text/plain"}
     )
 
-def response(flow: http.HTTPFlow):
-    """Logs intercepted responses."""
-    ctx.log.info(f"Response from {flow.request.pretty_url}: {flow.response.status_code}")
-    ctx.log.debug(f"Response body: {flow.response.content[:200]}")  # Log first 200 bytes for debugging
+def get_real_file_type(chunk):
+    """Detects the actual file type using magic."""
+    return magic.from_buffer(chunk)
+
+def response(flow: http.HTTPFlow) -> None:
+    # Check if the response is an octet-stream or contains a content-disposition header indicating file transfer
+    if "content-disposition" in flow.response.headers or "application/octet-stream" in flow.response.headers.get("content-type", ""):
+
+        # Create a SHA256 hasher instance
+        hasher = hashlib.sha256()
+
+        # Read the entire content of the response
+        content = flow.response.content
+
+        # Detect the real file type based on the content
+        file_type = get_real_file_type(content)
+
+        # Update the hasher with the content to get the file's hash
+        hasher.update(content)
+
+        # Get the hexadecimal representation of the hash
+        file_hash = hasher.hexdigest()
+
+        # Print the file hash and detected MIME type
+        print(f"File Hash: {file_hash} | Real Type: {file_type}")
+        sleep (10)
