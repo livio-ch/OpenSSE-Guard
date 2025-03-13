@@ -82,14 +82,15 @@ def request(flow: http.HTTPFlow):
                     original_host = flow.request.host
                     original_port = flow.request.port
                     original_scheme = flow.request.scheme
+                    original_path = flow.request.path
+                    original_url = flow.request.url
 
                     # Set new proxy for request
-                    flow.request.headers["Proxy-Authorization"] = "Basic fakeproxy"  # Optional auth
                     flow.request.scheme = "http"
                     flow.request.host = proxy_host
                     flow.request.port = proxy_port
-                    flow.request.path = f"{original_scheme}://{original_host}{flow.request.path}"
-
+                    flow.request.path = f"{original_scheme}://{original_host}{original_path}"
+                    flow.request.headers["Host"] = original_host  # Set the correct Host header
                     logging.info(f"Request now routed through proxy: {proxy_host}:{proxy_port}")
 
         else:
