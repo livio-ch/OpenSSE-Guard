@@ -20,6 +20,11 @@ def start_services():
         ["mitmdump", "-p", "8080", "-s", MITMPROXY_SCRIPT_PATH]
     )
 
+
+    mitmproxy_process = subprocess.Popen(
+        ["mitmdump", "-p", "8081"]
+    )
+
     # Wait for the services to start (you might need to adjust the timing based on your system)
     time.sleep(5)  # Adjust if necessary to give time for Flask and mitmproxy to start
 
@@ -35,7 +40,7 @@ def start_services():
 test_cases = [
     ("https://www.google.com", 200),
 #    ("http://whatismyip.com", 200),
-#    ("http://httpbin.org", 200),
+    ("http://httpbin.org", 200),
 #    ("https://www.redirectme.com", 200),
     ("http://blocked.com", 403),
     ("http://blockedsite.com", 403),
