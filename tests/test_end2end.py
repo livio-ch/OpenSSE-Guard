@@ -8,6 +8,8 @@ from requests.exceptions import RequestException
 # Path to your app.py and api_call_intercept.py scripts
 APP_PATH = os.path.join(os.getcwd(), "app.py")
 MITMPROXY_SCRIPT_PATH = os.path.join(os.getcwd(), "api_call_intercept.py")
+CA_CERT_PATH = os.path.expanduser("~/.mitmproxy/mitmproxy-ca-cert.pem")
+
 
 # Start services function to launch the Flask app and mitmproxy
 @pytest.fixture(scope="module")
@@ -19,7 +21,6 @@ def start_services():
     mitmproxy_process = subprocess.Popen(
         ["mitmdump", "-p", "8080", "-s", MITMPROXY_SCRIPT_PATH]
     )
-
 
     mitmproxy_process = subprocess.Popen(
         ["mitmdump", "-p", "8081"]
@@ -38,18 +39,16 @@ def start_services():
 
 # Test cases to test the proxy routing and Flask API
 test_cases = [
-    ("https://www.google.com", 200),
-#    ("http://whatismyip.com", 200),
-    ("http://httpbin.org", 200),
-#    ("https://www.redirectme.com", 200),
-    ("http://blocked.com", 403),
-    ("http://blockedsite.com", 403),
-    ("http://www.example.com", 403),
-    ("https://www.dhl.de/de/privatkunden/", 403)
+    ("https://www.google.com", 200, True),  # Google.com requires verification
+#    ("https://httpbin.org", 200, False),    # httpbin.org does not need verification
+    ("http://blocked.com", 403, False),    # blocked.com does not need verification
+    ("http://blockedsite.com", 403, False), # blockedsite.com does not need verification
+    ("http://www.example.com", 403, False), # example.com needs custom CA cert
+    ("https://www.dhl.de/de/privatkunden/", 403, CA_CERT_PATH)  # dhl.de does not need verification
 ]
 
-@pytest.mark.parametrize("url, expected_status", test_cases)
-def test_proxy_routing(start_services, url, expected_status):
+@pytest.mark.parametrize("url, expected_status, verify_option", test_cases)
+def test_proxy_routing(start_services, url, expected_status, verify_option):
     """Test that requests are routed through the proxy and return the expected status codes."""
 
     # Ensure the proxy is available before making requests (optional, to avoid race conditions)
@@ -65,14 +64,15 @@ def test_proxy_routing(start_services, url, expected_status):
                 pytest.fail("Proxy server is not reachable after multiple attempts.")
             time.sleep(2)  # Wait before retrying
 
-    # Making the actual request through the proxy, ignoring SSL certificate verification
+    # Set proxies
     proxies = {
         'http': 'http://localhost:8080',
         'https': 'http://localhost:8080',
     }
 
     try:
-        response = requests.get(url, proxies=proxies, verify=False, timeout=10)
+        # Make the request through the proxy with the appropriate SSL verification option
+        response = requests.get(url, proxies=proxies, verify=verify_option, timeout=10)
         assert response.status_code == expected_status, f"Expected {expected_status} but got {response.status_code} for {url}"
     except RequestException as e:
         pytest.fail(f"Request failed for {url}: {e}")
