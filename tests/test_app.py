@@ -181,7 +181,7 @@ def test_multiple_hostnames(client):
     # Assert that the response contains the correct error message
     assert response.json == {
         'status': 'error',
-        'message': 'Multiple hostnames are not allowed in the request'
+        'message': 'Multiple hostnames not allowed'
     }
 
 def test_wildcard_hostname(client):
