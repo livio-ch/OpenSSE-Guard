@@ -1,0 +1,15 @@
+# tls tls_excluded
+curl -x http://localhost:8080 --insecure https://www.google.com
+
+# redirected over port 8081
+
+curl -x http://localhost:8080 http://whatismyip.com
+curl -x http://localhost:8080 http://httpbin.org
+curl -x http://localhost:8080 --insecure https://www.redirectme.com
+
+
+#blocked requests
+curl -x http://localhost:8080 http://blocked.com
+curl -x http://localhost:8080 http://blockedsite.com
+curl -x http://localhost:8080 http://www.example.com
+curl -x http://localhost:8080 --insecure https://www.dhl.de/de/privatkunden/
