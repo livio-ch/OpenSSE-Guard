@@ -5,6 +5,9 @@ import requests
 import magic
 import hashlib
 import time
+from typing import Iterable, Union
+
+
 # Replace with your Flask API endpoint
 API_URL = "http://127.0.0.1:5000/checkUrl"
 
@@ -94,25 +97,46 @@ def get_real_file_type(chunk):
     """Detects the actual file type using magic."""
     return magic.from_buffer(chunk)
 
-def response(flow: http.HTTPFlow) -> None:
-    # Check if the response is an octet-stream or contains a content-disposition header indicating file transfer
+
+accumulated_data = bytearray()  # Initialize the accumulated data
+first_round = True  # Flag to track if it's the first round of data
+counter = 0
+BUFFER_SIZE = 8192  # Size of each chunk sent to the client (adjust as needed)
+DELAY = 0  # Time delay between each chunk (adjust to slow down download speed)
+HASH_SHA256 =  hashlib.sha256()
+HASH_MD5 =  hashlib.md5()
+
+def responseheaders(flow: mitmproxy.http.HTTPFlow):
+    """Check if the response is streamable and set stream response handler."""
     if "content-disposition" in flow.response.headers or "application/octet-stream" in flow.response.headers.get("content-type", ""):
+        ctx.log.info("Setting response bodmd5tream")
+        global first_round, HASH_SHA256
+        HASH_SHA256  =  hashlib.sha256()
+        HASH_MD5  =  hashlib.md5()
+        first_round = True
 
-        # Create a SHA256 hasher instance
-        hasher = hashlib.sha256()
+        flow.response.stream = stream_response  # Set the stream_response function to handle the response
 
-        # Read the entire content of the response
-        content = flow.response.content
+def stream_response(flow: bytes) -> Iterable[bytes]:
+    global accumulated_data, first_round, counter, full_data, HASH_SHA256  # Access global variables
+    accumulated_data.extend(flow)  # Add the new flow data to the accumulated data
+    HASH_SHA256.update(flow)
+    HASH_MD5.update(flow)
 
-        # Detect the real file type based on the content
-        file_type = get_real_file_type(content)
+    if flow == b'':
+        print("Stream finished (empty chunk received).")
+        print(HASH_SHA256.hexdigest())
+        print(HASH_MD5.hexdigest())
+#TODO send request against API
 
-        # Update the hasher with the content to get the file's hash
-        hasher.update(content)
-
-        # Get the hexadecimal representation of the hash
-        file_hash = hasher.hexdigest()
-
-        # Print the file hash and detected MIME type
-        print(f"File Hash: {file_hash} | Real Type: {file_type}")
-        sleep (10)
+        time.sleep(10)
+        yield accumulated_data
+    else:
+        # First round, determine the file type
+        if first_round:
+            rtype = get_real_file_type(flow)
+            print(f"File type detected: {rtype}")
+            first_round = False  # Set flag to false after first round
+        chunk = accumulated_data[:BUFFER_SIZE]
+        accumulated_data = accumulated_data[BUFFER_SIZE:]
+        yield chunk
