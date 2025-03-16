@@ -46,3 +46,4 @@ Dockerfile
 *.tar
 *.img
 __pulsar_cache__/
+url_filter.db
