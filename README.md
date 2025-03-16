@@ -10,19 +10,21 @@ OpenSSE-Guard is a lightweight security tool that intercepts HTTP(S) traffic, an
 ✅ **Forwarding requests to a different proxy when needed**  
 
 Built with **mitmproxy** and **Flask**, OpenSSE-Guard acts as a dynamic security gateway, making it ideal for **enterprise security, content filtering, and web traffic control**.
+This is a playground project and should probably not be used in production.
 
 ## 🔹 Features
 - **Custom URL Filtering** – Block or redirect requests based on domains, hostnames, or URL patterns.
 - **Dynamic Proxy Forwarding** – Reroute requests to another proxy when necessary.
 - **Security-First Design** – Helps enforce **SSE (Security Service Edge)** policies.
 - **Lightweight & Extensible** – Easily integrates with other security tools.
+- **Stream Handling & Content Analysis** – Intercepts and processes HTTP responses with stream handling and content-based rules.
 
 ## 🔹 Installation
 ### Prerequisites
 Ensure you have the following installed:
 - Python 3.7+
-- mitmproxy
-- Flask
+- mitmproxy (for traffic interception)
+- Flask (for the API layer)
 
 ### Setup
 ```sh
