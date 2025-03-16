@@ -10,6 +10,7 @@ from typing import Iterable, Union
 
 # Replace with your Flask API endpoint
 API_URL = "http://127.0.0.1:5000/checkUrl"
+API_URL_HASH = "http://127.0.0.1:5000/checkHash"
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -102,23 +103,31 @@ accumulated_data = bytearray()  # Initialize the accumulated data
 first_round = True  # Flag to track if it's the first round of data
 counter = 0
 BUFFER_SIZE = 8192  # Size of each chunk sent to the client (adjust as needed)
-DELAY = 0  # Time delay between each chunk (adjust to slow down download speed)
+DELAY = 1  # DELAYED starting of chunking
 HASH_SHA256 =  hashlib.sha256()
 HASH_MD5 =  hashlib.md5()
+FLOWURL = ""
 
 def responseheaders(flow: mitmproxy.http.HTTPFlow):
     """Check if the response is streamable and set stream response handler."""
-    if "content-disposition" in flow.response.headers or "application/octet-stream" in flow.response.headers.get("content-type", ""):
-        ctx.log.info("Setting response bodmd5tream")
-        global first_round, HASH_SHA256
-        HASH_SHA256  =  hashlib.sha256()
-        HASH_MD5  =  hashlib.md5()
-        first_round = True
+#    if "content-disposition" in flow.response.headers or "application/octet-stream" in flow.response.headers.get("content-type", ""):
+#        ctx.log.info("Setting response bodmd5tream")
+    global first_round, HASH_SHA256, FLOWURL, DELAY
+    DELAY = 1
+    HASH_SHA256  =  hashlib.sha256()
+    HASH_MD5  =  hashlib.md5()
+    first_round = True
+    FLOWURL =  flow.request.url
+    # Remove Content-Length header if present
+    if "content-length" in flow.response.headers:
+        del flow.response.headers["content-length"]
+        flow.response.headers["Transfer-Encoding"] = "chunked"
+        print(f"Removed Content-Length header for {FLOWURL}")
 
-        flow.response.stream = stream_response  # Set the stream_response function to handle the response
+    flow.response.stream = stream_response  # Set the stream_response function to handle the response
 
 def stream_response(flow: bytes) -> Iterable[bytes]:
-    global accumulated_data, first_round, counter, full_data, HASH_SHA256  # Access global variables
+    global accumulated_data, first_round, counter, full_data, HASH_SHA256, FLOWURL, DELAY  # Access global variables
     accumulated_data.extend(flow)  # Add the new flow data to the accumulated data
     HASH_SHA256.update(flow)
     HASH_MD5.update(flow)
@@ -127,9 +136,19 @@ def stream_response(flow: bytes) -> Iterable[bytes]:
         print("Stream finished (empty chunk received).")
         print(HASH_SHA256.hexdigest())
         print(HASH_MD5.hexdigest())
-#TODO send request against API
+        data = {
+            "file_hash": HASH_SHA256.hexdigest(),
+            "url": FLOWURL
+        }
+        response = requests.post(API_URL_HASH, json=data)
+        response_data = response.json()
+        if response_data.get("status") == "blocked":
+            print("Blocked:", response_data["message"])
+            accumulated_data = bytearray()
+            yield b''
+        else:
+            print("Allowed:", response_data["message"])
 
-        time.sleep(10)
         yield accumulated_data
     else:
         # First round, determine the file type
@@ -137,6 +156,11 @@ def stream_response(flow: bytes) -> Iterable[bytes]:
             rtype = get_real_file_type(flow)
             print(f"File type detected: {rtype}")
             first_round = False  # Set flag to false after first round
+            DELAY = DELAY - 1
+            return ""
+        if DELAY > 0: #yield chunks later wait 1 more round.
+            DELAY = DELAY -1
+            return ""
         chunk = accumulated_data[:BUFFER_SIZE]
         accumulated_data = accumulated_data[BUFFER_SIZE:]
         yield chunk

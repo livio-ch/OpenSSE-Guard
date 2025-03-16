@@ -11,7 +11,7 @@ def init_db():
     cursor.execute("DELETE FROM blocked_urls")  # Clear all records from blocked_urls
     cursor.execute("DELETE FROM redirect_urls")  # Clear all records from redirect_urls
     cursor.execute("DELETE FROM tls_excluded_hosts")  # Clear all records from tls_excluded_hosts
-
+    cursor.execute("DELETE FROM blocked_files")
     # You can also drop the tables entirely if you want to re-create them
     # cursor.execute("DROP TABLE IF EXISTS blocked_urls")
     # cursor.execute("DROP TABLE IF EXISTS redirect_urls")
