@@ -12,18 +12,16 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 
 DB_PATH = "url_filter.db"  # Path to SQLite database
 
-
+# Helper Functions
 def get_domain(url):
     """Extracts the main domain from a URL (ignores subdomains)."""
     extracted = tldextract.extract(url)
     return f"{extracted.domain}.{extracted.suffix}"
 
-
 def normalize_url(url):
     """Normalizes URL to remove query parameters and fragments."""
     parsed = urlparse(url)
     return f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
-
 
 def query_database(query, params=()):
     """Executes a database query and returns the first result."""
@@ -36,7 +34,7 @@ def query_database(query, params=()):
         logging.error(f"Database error: {e}")
         return None
 
-
+# Check if URL is blocked
 def get_block_status(url):
     """Checks if a URL is blocked based on database rules."""
     hostname = urlparse(url).netloc
@@ -54,7 +52,7 @@ def get_block_status(url):
 
     return None  # Not blocked
 
-
+# Get Proxy for Redirected URL
 def get_redirect_proxy(url):
     """Fetch the proxy for a redirected URL from the database."""
     hostname = urlparse(url).netloc
@@ -73,12 +71,45 @@ def get_redirect_proxy(url):
 
     return None  # No redirect match found
 
-
+# Check if Hostname is excluded from TLS interception
 def is_tls_excluded(hostname):
     """Checks if a hostname should be excluded from TLS interception."""
     return query_database("SELECT hostname FROM tls_excluded_hosts WHERE hostname = ?", (hostname,)) is not None
 
+# Check if file hash is blocked
+def check_file_hash_in_db(file_hash):
+    """Check if a file hash is blocked in the database."""
+    result = query_database("SELECT value FROM blocked_files WHERE file_hash = ?", (file_hash,))
+    if result:
+        return {'status': 'blocked', 'message': 'Blocked file hash'}
+    return None  # Not blocked
 
+# New route to check both file hash and URL
+@app.route('/checkHash', methods=['POST'])
+def check_file_and_url():
+    """Check both file hash and URL for block status."""
+    data = request.get_json()
+
+    if "file_hash" not in data or "url" not in data:
+        return jsonify({'status': 'error', 'message': 'Missing file_hash or url'}), 400
+
+    file_hash = data['file_hash']
+    url = data['url']
+
+    # Check file hash in the database
+    file_status = check_file_hash_in_db(file_hash)
+    if file_status:
+        return jsonify(file_status), 200
+
+    # Check URL in the database
+    url_status = get_block_status(url)
+    if url_status:
+        return jsonify(url_status), 200
+
+    # If neither the file nor the URL are blocked
+    return jsonify({'status': 'allowed', 'message': 'File and URL are allowed'}), 200
+
+# Existing endpoint for checking URL or Hostname
 @app.route('/checkUrl', methods=['POST'])
 def check_url():
     data = request.get_json()
@@ -92,7 +123,7 @@ def check_url():
 
     return jsonify({'status': 'error', 'message': 'Missing URL or host'}), 400
 
-
+# Handle Hostname Check
 def process_host_check(hostname):
     """Handles TLS hostname checking logic."""
     if isinstance(hostname, list):
@@ -118,7 +149,7 @@ def process_host_check(hostname):
     logging.info(f"TLS allowed for hostname: {hostname}")
     return jsonify({'status': 'allowed', 'message': 'TLS allowed'}), 200
 
-
+# Handle URL Check
 def process_url_check(url):
     """Handles full URL checking logic."""
     if not url:
@@ -138,12 +169,12 @@ def process_url_check(url):
     logging.info(f"Allowed URL: {url}")
     return jsonify({'status': 'allowed', 'message': 'Access granted'}), 200
 
-
+# Global error handler for unexpected exceptions
 @app.errorhandler(Exception)
 def handle_exception(e):
     logging.error(f"Unexpected error: {str(e)}")
     return jsonify({'status': 'error', 'message': 'Internal Server Error'}), 500
 
-
+# Main entry point
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

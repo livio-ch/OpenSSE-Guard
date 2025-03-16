@@ -36,6 +36,10 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             hostname TEXT NOT NULL UNIQUE
         );
+        CREATE TABLE IF NOT EXISTS blocked_files (
+            file_hash TEXT PRIMARY KEY,
+            value TEXT
+        );
     ''')
 
     conn.commit()
