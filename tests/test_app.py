@@ -189,3 +189,39 @@ def test_wildcard_hostname(client):
     response = client.post("/checkUrl", json={"host": "sub.example.com"})
     assert response.status_code == 200
     assert response.json["status"] == "allowed"  # Assuming *.example.com is allowed
+
+
+def test_blocked_file_hash(client):
+    """Test a file hash that is blocked in the database."""
+    blocked_file_hash = "275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f"
+    response = client.post("/checkHash", json={"file_hash": blocked_file_hash, "url": "https://example.com"})
+    assert response.status_code == 200
+    assert response.json["status"] == "blocked"
+    assert response.json["message"] == "Blocked file hash"
+
+def test_allowed_file_hash(client):
+    """Test a file hash that is allowed (not blocked)."""
+    allowed_file_hash = "allowedfilehash1234567890"
+    response = client.post("/checkHash", json={"file_hash": allowed_file_hash, "url": "https://example.com"})
+    assert response.status_code == 200
+    assert response.json["status"] == "allowed"
+    assert response.json["message"] == "File and URL are allowed"
+
+
+
+def test_blocked_mime_type(client):
+    """Test a MIME type that is blocked."""
+    blocked_mime_type = "application/x-dosexec"
+    response = client.post("/checkMimeType", json={"mime_type": blocked_mime_type, "url": "https://example.com"})
+    assert response.status_code == 200
+    assert response.json["status"] == "blocked"
+    assert response.json["message"] == "Blocked MIME type"
+
+
+def test_allowed_mime_type(client):
+    """Test an allowed MIME type."""
+    allowed_mime_type = "application/json"
+    response = client.post("/checkMimeType", json={"mime_type": allowed_mime_type, "url": "https://example.com"})
+    assert response.status_code == 200
+    assert response.json["status"] == "allowed"
+    assert response.json["message"] == "MIME type allowed"
