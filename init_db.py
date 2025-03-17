@@ -7,20 +7,17 @@ def init_db():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
-    # Clear existing entries from tables (optional: you can drop tables if you prefer)
-    cursor.execute("DELETE FROM blocked_urls")  # Clear all records from blocked_urls
-    cursor.execute("DELETE FROM redirect_urls")  # Clear all records from redirect_urls
-    cursor.execute("DELETE FROM tls_excluded_hosts")  # Clear all records from tls_excluded_hosts
-    cursor.execute("DELETE FROM blocked_files")
-    cursor.execute("DELETE FROM blocked_mimetypes")
 
-    # You can also drop the tables entirely if you want to re-create them
-    # cursor.execute("DROP TABLE IF EXISTS blocked_urls")
-    # cursor.execute("DROP TABLE IF EXISTS redirect_urls")
-    # cursor.execute("DROP TABLE IF EXISTS tls_excluded_hosts")
 
     # Create tables if they don't exist
     cursor.executescript('''
+            DROP TABLE IF EXISTS blocked_urls;
+            DROP TABLE IF EXISTS redirect_urls;
+            DROP TABLE IF EXISTS tls_excluded_hosts;
+            DROP TABLE IF EXISTS blocked_files;
+            DROP TABLE IF EXISTS blocked_mimetypes;
+
+
         CREATE TABLE IF NOT EXISTS blocked_urls (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             type TEXT NOT NULL,  -- 'domain', 'hostname', or 'url_prefix'
