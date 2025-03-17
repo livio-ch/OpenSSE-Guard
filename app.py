@@ -169,6 +169,37 @@ def process_url_check(url):
     logging.info(f"Allowed URL: {url}")
     return jsonify({'status': 'allowed', 'message': 'Access granted'}), 200
 
+
+# Check if MIME type is blocked
+def check_mime_type_in_db(mime_type):
+    result = query_database("SELECT value FROM blocked_mimetypes WHERE value = ?", (mime_type,))
+    if result:
+        return {'status': 'blocked', 'message': 'Blocked MIME type'}
+    return None  # Not blocked
+
+# New route to check MIME type
+@app.route('/checkMimeType', methods=['POST'])
+def check_mime_type():
+    data = request.get_json()
+
+    if "mime_type" not in data or "url" not in data:
+        return jsonify({'status': 'error', 'message': 'Missing mime_type or url'}), 400
+
+    mime_type = data["mime_type"]
+    url = data["url"]
+
+    # Log URL for reference
+    logging.info(f"Received MIME type check request for URL: {url}")
+
+    # Check MIME type in the database
+    mime_status = check_mime_type_in_db(mime_type)
+    if mime_status:
+        return jsonify(mime_status), 200
+
+    return jsonify({'status': 'allowed', 'message': 'MIME type allowed', 'mime_type': mime_type, 'url': url}), 200
+
+
+
 # Global error handler for unexpected exceptions
 @app.errorhandler(Exception)
 def handle_exception(e):

@@ -11,6 +11,7 @@ from typing import Iterable, Union
 # Replace with your Flask API endpoint
 API_URL = "http://127.0.0.1:5000/checkUrl"
 API_URL_HASH = "http://127.0.0.1:5000/checkHash"
+API_URL_MIME = "http://127.0.0.1:5000/checkMimeType"
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -96,7 +97,8 @@ def send_error_response(flow):
 
 def get_real_file_type(chunk):
     """Detects the actual file type using magic."""
-    return magic.from_buffer(chunk)
+    magic_obj = magic.Magic(mime=True)
+    return magic_obj.from_buffer(chunk)
 
 
 accumulated_data = bytearray()  # Initialize the accumulated data
@@ -154,7 +156,19 @@ def stream_response(flow: bytes) -> Iterable[bytes]:
         # First round, determine the file type
         if first_round:
             rtype = get_real_file_type(flow)
-            print(f"File type detected: {rtype}")
+            #print(f"File type detected: {rtype}")
+            data = {
+                "mime_type": rtype,
+                "url": FLOWURL
+            }
+            response = requests.post(API_URL_MIME, json=data)
+            response_data = response.json()
+            if response_data.get("status") == "blocked":
+                print("Blocked:", response_data["message"])
+                accumulated_data = bytearray()
+                yield b''
+            else:
+                print("Allowed:", response_data["message"])
             first_round = False  # Set flag to false after first round
             DELAY = DELAY - 1
             return ""

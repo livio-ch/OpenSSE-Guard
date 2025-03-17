@@ -15,3 +15,7 @@ curl -x http://localhost:8080 --insecure https://www.dhl.de/de/privatkunden/
 curl -x http://localhost:8080 --insecure https://blocked.com
 curl -x http://localhost:8080 --insecure https://blockedsite.com
 curl -x http://localhost:8080 --insecure https://www.example.com
+
+
+# executable  application/x-dosexec
+curl -x http://localhost:8080 --insecure https://download.httrack.com/httrack-3.49.2.exe

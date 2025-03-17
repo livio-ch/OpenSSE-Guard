@@ -17,6 +17,10 @@ cursor.execute("INSERT INTO redirect_urls (type, value, proxy) VALUES ('url_pref
 cursor.execute("INSERT or REPLACE  INTO blocked_files (file_hash, value) VALUES ('275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f', 'eicar.com')")
 
 
+# Insert blocked MIME types
+cursor.execute("INSERT INTO blocked_mimetypes (value) VALUES ('application/x-dosexec')")
+cursor.execute("INSERT INTO blocked_mimetypes (value) VALUES ('application/x-msdownload')")
+
 # Insert TLS exclusions
 cursor.execute("INSERT INTO tls_excluded_hosts (hostname) VALUES ('www.google.com')")
 
