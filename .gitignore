@@ -47,3 +47,4 @@ Dockerfile
 *.img
 __pulsar_cache__/
 url_filter.db
+.env
