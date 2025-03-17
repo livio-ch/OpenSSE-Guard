@@ -4,13 +4,25 @@ from flask import Flask, request, jsonify
 import tldextract
 import re
 from urllib.parse import urlparse
+import requests  # To make API calls to OTX
+import json  # Ensure you import json at the top of your script
+import os
+from dotenv import load_dotenv  # Import dotenv
 
 app = Flask(__name__)
+
+
+# Load environment variables from the .env file
+load_dotenv()
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 DB_PATH = "url_filter.db"  # Path to SQLite database
+
+OTX_API_KEY = os.getenv('OTX_API_KEY')  # Retrieve the API key from the .env file
+OTX_API_URL = 'https://otx.alienvault.com/api/v1/indicators/domain/{}/general'  # OTX API URL for domain check
+
 
 # Helper Functions
 def get_domain(url):
@@ -35,10 +47,11 @@ def query_database(query, params=()):
         return None
 
 def get_block_status(url):
-    """Checks if a URL is blocked based on database rules."""
+    """Checks if a URL is blocked based on database rules and OTX."""
     hostname = urlparse(url).netloc
     domain = get_domain(url)
 
+    # Check against local database first
     checks = [
         ("SELECT value FROM blocked_urls WHERE type = 'url_prefix' AND ? LIKE value || '%'", (url,), 'Blocked by URL prefix'),
         ("SELECT value FROM blocked_urls WHERE type = 'hostname' AND value = ?", (hostname,), 'Blocked by exact hostname'),
@@ -49,7 +62,74 @@ def get_block_status(url):
         if query_database(query, params):
             return {'status': 'blocked', 'message': message}
 
+    # Check OTX for IOC (Indicator of Compromise)
+    ioc_status = check_otx_for_ioc(domain)
+    logging.info(f"Domain {domain} isioc status {ioc_status}.")
+    if ioc_status and ioc_status.get('verdict') != 'Whitelisted':
+        # If it's an IOC and not whitelisted, block the request
+        return {'status': 'blocked', 'message': 'Domain is an IOC (Indicator of Compromise)'}
+
     return None  # Not blocked
+
+
+def check_otx_for_ioc(domain):
+    """Check the domain against OTX and extract Facts & Verdict."""
+    headers = {'X-OTX-API-KEY': OTX_API_KEY}
+    response = requests.get(OTX_API_URL.format(domain), headers=headers)
+
+    if response.status_code == 200:
+        data = response.json()
+
+        # Check if pulse_info count is 0
+        pulse_info = data.get('pulse_info', {})
+        pulse_count = pulse_info.get('count', 0)
+
+        if pulse_count == 0:
+            logging.info(f"Domain {domain} has pulse count 0, not blocking.")
+            return None  # No pulses, so don't block
+
+        # Extract the validation list that contains information about whitelist
+        validations = data.get('validation', [])
+
+        # Check if any of the validation sources are "whitelist"
+        for validation in validations:
+            if validation.get('source') == 'whitelist':
+                logging.info(f"Domain {domain} is whitelisted. Not blocking.")
+                return None  # Domain is whitelisted, so we don't block it
+
+        # If it's not whitelisted, check for other IOC information (verdict)
+        facts = data.get('facts', {})
+        verdict = facts.get('verdict', 'Unknown')
+
+        # Extract other relevant details from 'facts'
+        ip_addresses = facts.get('current_ip_addresses', [])
+        current_asns = facts.get('current_asns', [])
+        current_nameservers = facts.get('current_nameservers', [])
+        ssl_certificates = facts.get('ssl_certificates', [])
+
+        # Logging the extracted information in a readable format
+        logging.info(f"OTX Verdict for {domain}: {verdict}")
+        logging.info(f"OTX IP Addresses for {domain}: {json.dumps(ip_addresses, indent=4)}")
+        logging.info(f"OTX Current ASNs for {domain}: {json.dumps(current_asns, indent=4)}")
+        logging.info(f"OTX Current Nameservers for {domain}: {json.dumps(current_nameservers, indent=4)}")
+        logging.info(f"OTX SSL Certificates for {domain}: {json.dumps(ssl_certificates, indent=4)}")
+
+        # Return the IOC info (but only if it's not whitelisted)
+        return {
+            'verdict': verdict,
+            'ip_addresses': ip_addresses,
+            'current_asns': current_asns,
+            'current_nameservers': current_nameservers,
+            'ssl_certificates': ssl_certificates
+        }
+
+    else:
+        logging.error(f"OTX API call failed for domain {domain} with status code {response.status_code}")
+        return None
+
+
+
+
 
 def get_redirect_proxy(url):
     """Fetch the proxy for a redirected URL from the database."""

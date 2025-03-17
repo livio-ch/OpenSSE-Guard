@@ -4,3 +4,4 @@ requests==2.28.2
 tldextract==3.1.0
 pytest
 python-magic-bin
+python-dotenv
