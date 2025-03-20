@@ -197,7 +197,7 @@ def test_blocked_file_hash(client):
     response = client.post("/checkHash", json={"file_hash": blocked_file_hash, "url": "https://example.com"})
     assert response.status_code == 200
     assert response.json["status"] == "blocked"
-    assert response.json["message"] == "Blocked file hash"
+    assert response.json["message"] == "Blocked file hash (database)"
 
 def test_allowed_file_hash(client):
     """Test a file hash that is allowed (not blocked)."""

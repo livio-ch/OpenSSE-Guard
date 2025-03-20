@@ -153,25 +153,65 @@ def is_tls_excluded(hostname):
     """Checks if a hostname should be excluded from TLS interception."""
     return query_database("SELECT hostname FROM tls_excluded_hosts WHERE hostname = ?", (hostname,)) is not None
 
+
+def check_otx_for_file_hash(file_hash):
+    """Check the file hash against OTX and extract relevant threat information."""
+    headers = {'X-OTX-API-KEY': OTX_API_KEY}
+    response = requests.get(f"https://otx.alienvault.com/api/v1/indicators/file/{file_hash}/analysis", headers=headers)
+
+    if response.status_code != 200:
+        logging.error(f"OTX API request failed for hash {file_hash} with status code {response.status_code}")
+        return None
+
+    try:
+        data = response.json()
+
+        # Ensure 'pulse_info' exists in the response
+        pulse_info = data.get("pulse_info", {})
+        if not pulse_info or pulse_info.get("count", 0) == 0:
+            logging.info(f"Hash {file_hash} is not found in OTX (no pulses).")
+            return None  # No threats found
+
+        # Extract threat details
+        return {
+            "verdict": "Malicious",
+            "pulses": pulse_info.get("pulses", [])
+        }
+
+    except json.JSONDecodeError:
+        logging.error(f"OTX API returned invalid JSON for hash {file_hash}")
+        return None
+
+
+
 def check_file_hash_in_db(file_hash):
-    """Check if a file hash is blocked in the database."""
+    """Check if a file hash is blocked in the local database or flagged in OTX."""
+    # First, check in the local database
     result = query_database("SELECT value FROM blocked_files WHERE file_hash = ?", (file_hash,))
     if result:
-        return {'status': 'blocked', 'message': 'Blocked file hash'}
+        return {'status': 'blocked', 'message': 'Blocked file hash (database)'}
+
+    # If not found locally, check with AlienVault OTX
+    otx_result = check_otx_for_file_hash(file_hash)
+    if otx_result:
+        return {'status': 'blocked', 'message': 'Malicious file hash detected in OTX', 'details': otx_result}
+
     return None  # Not blocked
 
 @app.route('/checkHash', methods=['POST'])
 def check_file_and_url():
-    """Check both file hash and URL for block status."""
+    """Check both file hash and URL for block status (local database + OTX)."""
     data = request.get_json()
 
     if "file_hash" not in data or "url" not in data:
         return jsonify({'status': 'error', 'message': 'Missing file_hash or url'}), 400
 
+    # Check file hash (local DB + OTX)
     file_status = check_file_hash_in_db(data['file_hash'])
     if file_status:
         return jsonify(file_status), 200
 
+    # Check URL
     url_status = get_block_status(data['url'])
     if url_status:
         return jsonify(url_status), 200
