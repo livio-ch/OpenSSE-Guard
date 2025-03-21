@@ -7,6 +7,9 @@ from urllib.parse import urlparse
 import requests  # To make API calls to OTX
 import json  # Ensure you import json at the top of your script
 import os
+import time
+from log_db import LogDB
+
 from dotenv import load_dotenv  # Import dotenv
 
 app = Flask(__name__)
@@ -18,11 +21,12 @@ load_dotenv()
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
+
 DB_PATH = "url_filter.db"  # Path to SQLite database
 
 OTX_API_KEY = os.getenv('OTX_API_KEY')  # Retrieve the API key from the .env file
 OTX_API_URL = 'https://otx.alienvault.com/api/v1/indicators/domain/{}/general'  # OTX API URL for domain check
-
+log_db = LogDB()  # Create an instance of the LogDB class for logging
 
 # Helper Functions
 def get_domain(url):
@@ -201,34 +205,49 @@ def check_file_hash_in_db(file_hash):
 @app.route('/checkHash', methods=['POST'])
 def check_file_and_url():
     """Check both file hash and URL for block status (local database + OTX)."""
+
     data = request.get_json()
 
     if "file_hash" not in data or "url" not in data:
-        return jsonify({'status': 'error', 'message': 'Missing file_hash or url'}), 400
+        response =  jsonify({'status': 'error', 'message': 'Missing file_hash or url'}), 400
+
+        return response
 
     # Check file hash (local DB + OTX)
     file_status = check_file_hash_in_db(data['file_hash'])
     if file_status:
-        return jsonify(file_status), 200
+        response =  jsonify(file_status), 200
 
+        return response
     # Check URL
     url_status = get_block_status(data['url'])
     if url_status:
-        return jsonify(url_status), 200
+        response = jsonify(url_status), 200
 
-    return jsonify({'status': 'allowed', 'message': 'File and URL are allowed'}), 200
+        return response
+
+    response = jsonify({'status': 'allowed', 'message': 'File and URL are allowed'}), 200
+
+    return response
 
 @app.route('/checkUrl', methods=['POST'])
 def check_url():
+
     data = request.get_json()
     logging.info(f"Received data: {data}")
 
     if "host" in data:
-        return process_host_check(data["host"])
-    if "url" in data:
-        return process_url_check(data["url"])
+        response = process_host_check(data["host"])
 
-    return jsonify({'status': 'error', 'message': 'Missing URL or host'}), 400
+        return response
+    if "url" in data:
+        response = process_url_check(data["url"])
+
+        return response
+
+    response = jsonify({'status': 'error', 'message': 'Missing URL or host'}), 400
+
+    return response
 
 def process_host_check(hostname):
     if isinstance(hostname, list):
@@ -274,13 +293,73 @@ def check_mime_type():
     data = request.get_json()
 
     if "mime_type" not in data or "url" not in data:
-        return jsonify({'status': 'error', 'message': 'Missing mime_type or url'}), 400
+        response = jsonify({'status': 'error', 'message': 'Missing mime_type or url'}), 400
+
+        return response
 
     mime_status = check_mime_type_in_db(data["mime_type"])
     if mime_status:
-        return jsonify(mime_status), 200
+        response = jsonify(mime_status), 200
 
-    return jsonify({'status': 'allowed', 'message': 'MIME type allowed'}), 200
+        return response
+    response = jsonify({'status': 'allowed', 'message': 'MIME type allowed'}), 200
+
+    return response
+
+
+@app.route('/logs', methods=['GET'])
+def get_logs():
+    """Fetch all log entries from the log database."""
+    try:
+        # Get all logs from the database using LogDB class
+        logs = log_db.get_all_logs()  # Make sure to implement this method in your log_db.py
+
+        if not logs:
+
+            return jsonify({'status': 'error', 'message': 'No logs found'}), 404
+
+        # Return the logs in a JSON format
+
+        return jsonify({'status': 'success', 'logs': logs}), 200
+
+    except Exception as e:
+        logging.error(f"Error fetching logs: {str(e)}")
+
+        return jsonify({'status': 'error', 'message': 'Failed to fetch logs'}), 500
+
+
+@app.before_request
+def start_time():
+    request.start_time = time.time()
+
+
+@app.after_request
+def log_response(response):
+    """Log the request and response data."""
+    # Calculate the response time
+    response_time = time.time() - getattr(request, 'start_time', time.time())
+
+    # Ensure that request and response are serialized correctly
+    request_data = json.dumps(request.get_json() if request.is_json else {}, ensure_ascii=False)
+    if response.is_json:
+        response_data = json.dumps(response.get_json(), ensure_ascii=False)
+    else:
+        response_data = response.get_data(as_text=True)
+
+    # Log the request and response data
+    log_db.log(
+        level='INFO',
+        request=request_data,
+        response=response_data,
+        client_ip=str(request.remote_addr),
+        user_agent=str(request.headers.get('User-Agent')),
+        method=request.method,
+        status_code=response.status_code,
+        response_time=response_time,
+        category=request.url  # Category can be dynamic based on the request URL
+    )
+
+    return response
 
 @app.errorhandler(Exception)
 def handle_exception(e):
