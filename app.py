@@ -328,6 +328,54 @@ def get_logs():
         return jsonify({'status': 'error', 'message': 'Failed to fetch logs'}), 500
 
 
+
+def fetch_data_from_table(table_name, columns):
+    """General function to fetch data from any table."""
+    try:
+        # Connect to the database
+        with sqlite3.connect(DB_PATH) as conn:
+            cursor = conn.cursor()
+            query = f"SELECT {', '.join(columns)} FROM {table_name}"
+            cursor.execute(query)
+            data = cursor.fetchall()
+
+        if not data:
+            return {'status': 'error', 'message': f'No data found in {table_name}'}, 404
+
+        return {'status': 'success', 'data': data}, 200
+
+    except sqlite3.Error as e:
+        logging.error(f"Database error: {e}")
+        return {'status': 'error', 'message': 'Failed to fetch data from the database'}, 500
+
+
+@app.route('/get_policy', methods=['GET'])
+def get_policy():
+    """Fetch the current blocklist data based on the table specified in the query parameters."""
+    # Get the table name from the query parameters
+    table_name = request.args.get('table', None)
+    if not table_name:
+        return jsonify({'status': 'error', 'message': 'Table name is required'}), 400
+
+    # Define the available tables and their respective columns
+    table_columns = {
+        'blocked_urls': ['value', 'type'],
+        'blocked_files': ['file_hash', 'value'],
+        'blocked_mimetypes': ['value'],
+        'redirect_urls': ['type', 'value' , 'proxy'],
+        'tls_excluded_hosts': ['hostname'],
+    }
+
+    # Validate the requested table name
+    if table_name not in table_columns:
+        return jsonify({'status': 'error', 'message': f'Invalid table name: {table_name}'}), 400
+
+    # Fetch the data from the specified table
+    columns = table_columns[table_name]
+    response, status_code = fetch_data_from_table(table_name, columns)
+    return jsonify(response), status_code
+
+
 @app.before_request
 def start_time():
     request.start_time = time.time()
