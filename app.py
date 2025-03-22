@@ -345,13 +345,12 @@ def log_response(response):
         response_data = json.dumps(response.get_json(), ensure_ascii=False)
     else:
         response_data = response.get_data(as_text=True)
-
+# TODO add a ignore for the get all logs (or at least do not put the response data in ...)
     # Log the request and response data
     log_db.log(
         level='INFO',
         request=request_data,
-        response=response_data,
-        client_ip=str(request.remote_addr),
+        response=response_data if request.method != "GET" else "",  # Empty response for GET        client_ip=str(request.remote_addr),
         user_agent=str(request.headers.get('User-Agent')),
         method=request.method,
         status_code=response.status_code,
