@@ -8,6 +8,8 @@ const Policy = () => {
   const [error, setError] = useState(null);
   const [filters, setFilters] = useState({});
   const [columns, setColumns] = useState([]);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newItem, setNewItem] = useState({});
 
   const tableOptions = [
     { label: "Blocked URLs", value: "blocked_urls" },
@@ -101,19 +103,17 @@ const Policy = () => {
     const confirmDelete = window.confirm(`Are you sure you want to delete this entry?`);
     if (confirmDelete) {
       try {
-        // Ensure the correct 'condition' is passed, e.g., item.url or item.file_hash based on the table
         const deleteCondition = table === "blocked_urls" ? item.url :
                                table === "blocked_files" ? item.file_hash :
                                table === "blocked_mimetypes" ? item.mime_type :
                                table === "redirect_urls" ? item.source_url :
                                table === "tls_excluded_hosts" ? item.hostname : null;
 
-        // If the delete condition is valid
         if (deleteCondition) {
           const response = await axios.delete("http://localhost:5000/delete_policy", {
             data: {
-              table,      // Pass the table name
-              condition: deleteCondition, // Pass the condition (ID or unique field)
+              table,
+              condition: deleteCondition,
             },
           });
 
@@ -127,6 +127,30 @@ const Policy = () => {
         setError("Error deleting data");
       }
     }
+  };
+
+  // Handle adding new item
+  const handleAddItem = async () => {
+    try {
+      const response = await axios.post("http://localhost:5000/set_policy", {
+        table,
+        data: newItem,
+      });
+
+      // Adjusted to check for either 200 or 201 status codes.
+      if (response.status === 200 || response.status === 201) {
+        setShowAddForm(false); // Hide form after submission
+        fetchData(); // Refresh the data after adding new item
+      }
+    } catch (error) {
+      setError("Error adding new item");
+    }
+  };
+
+  // Handle form input change for new item
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setNewItem({ ...newItem, [name]: value });
   };
 
   return (
@@ -155,6 +179,52 @@ const Policy = () => {
           </option>
         ))}
       </select>
+
+      {/* Show Add Item Form */}
+      <div className="mb-4">
+        <button
+          onClick={() => setShowAddForm(!showAddForm)}
+          className="px-5 py-2 bg-green-500 text-white font-semibold rounded-lg shadow-md hover:scale-105 transition"
+        >
+          {showAddForm ? "Cancel Add" : "Add Item"}
+        </button>
+      </div>
+
+      {showAddForm && (
+        <div className="mb-4 p-4 border rounded-lg bg-white">
+          <h3 className="font-semibold text-lg mb-4">Add New Item</h3>
+          <div className="space-y-3">
+            {columns.map((col, idx) => (
+              <div key={idx}>
+                <label className="block text-sm font-medium">
+                  {col.replace("_", " ").toUpperCase()}
+                </label>
+                <input
+                  type="text"
+                  name={col}
+                  onChange={handleInputChange}
+                  className="w-full p-2 border border-gray-300 rounded-md"
+                  placeholder={`Enter ${col.replace("_", " ")}`}
+                />
+              </div>
+            ))}
+            <div className="flex space-x-4">
+              <button
+                onClick={handleAddItem}
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+              >
+                Add Item
+              </button>
+              <button
+                onClick={() => setShowAddForm(false)}
+                className="px-4 py-2 bg-gray-300 text-black rounded-lg hover:bg-gray-400"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Show loading indicator */}
       {loading && <p className="text-gray-500">Loading...</p>}

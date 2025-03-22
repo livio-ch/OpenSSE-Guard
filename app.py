@@ -380,17 +380,18 @@ def set_policy():
     """
     Adds a policy entry to a specified table in the database.
     The data should include the table name and the relevant entry data.
+    Expected JSON: {"table": "blocked_urls", "data": {"url": "www.google.com", "type": "domain"}}
     """
     data = request.get_json()
-
+    logging.error(f"INPUT: {data}")
     # Check if the required data is present in the request
-    if "table" not in data or "values" not in data:
+    if "table" not in data or "data" not in data or not isinstance(data.get("data"), dict):
         return jsonify({'status': 'error', 'message': 'Missing table or values'}), 400
 
     table_name = data["table"]
-    values = data["values"]
+    input_values = data["data"]
 
-    # Define the available tables and their respective columns for insertion
+    # Define the available tables, their DB columns, and a mapping from JSON key to DB column
     table_columns = {
         'blocked_urls': ['value', 'type'],
         'blocked_files': ['file_hash', 'value'],
@@ -398,31 +399,46 @@ def set_policy():
         'redirect_urls': ['type', 'value', 'proxy'],
         'tls_excluded_hosts': ['hostname'],
     }
+    # Mapping: for each table, map DB column name to the key expected in the incoming JSON.
+    mapping = {
+        'blocked_urls': {'value': 'url', 'type': 'type'},
+        'blocked_files': {'file_hash': 'file_hash', 'value': 'file_name'},
+        'blocked_mimetypes': {'value': 'mime_type'},
+        'redirect_urls': {'type': 'type', 'value': 'source_url', 'proxy': 'proxy'},
+        'tls_excluded_hosts': {'hostname': 'hostname'},
+    }
 
     # Validate the requested table name
     if table_name not in table_columns:
         return jsonify({'status': 'error', 'message': f'Invalid table name: {table_name}'}), 400
 
-    # Ensure that the number of values matches the number of columns
     columns = table_columns[table_name]
-    if len(values) != len(columns):
-        return jsonify({'status': 'error', 'message': 'Incorrect number of values for the table columns'}), 400
+    key_mapping = mapping[table_name]
+
+    # Build the list of values in the correct order based on the mapping.
+    ordered_values = []
+    for col in columns:
+        json_key = key_mapping.get(col, col)  # Default to col if no mapping exists
+        value = input_values.get(json_key)
+        if value is None:
+            return jsonify({'status': 'error', 'message': 'Missing values for one or more columns'}), 400
+        ordered_values.append(value)
 
     # Create the SQL query for inserting the data
-    placeholders = ', '.join(['?'] * len(values))
+    placeholders = ', '.join(['?'] * len(ordered_values))
     query = f"INSERT INTO {table_name} ({', '.join(columns)}) VALUES ({placeholders})"
 
     try:
         # Insert the data into the specified table
         with sqlite3.connect(DB_PATH) as conn:
             cursor = conn.cursor()
-            cursor.execute(query, tuple(values))
+            cursor.execute(query, tuple(ordered_values))
             conn.commit()
 
         return jsonify({'status': 'success', 'message': 'Policy entry added successfully'}), 201
 
     except sqlite3.Error as e:
-        logging.error(f"Database error: {e}")
+        logging.error(f"Database error: {e}, query: {query}, values: {ordered_values}")
         return jsonify({'status': 'error', 'message': 'Failed to add policy entry'}), 500
 
 

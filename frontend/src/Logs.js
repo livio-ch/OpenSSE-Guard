@@ -95,11 +95,17 @@ function Logs() {
     }
     if (typeof value === "object" && value !== null) {
       // If the value is a JSON object, unpack and display its properties
-      return Object.entries(value).map(([subKey, subValue]) => (
-        <div key={subKey}>
-          <strong>{subKey}:</strong> {subValue}
-        </div>
-      ));
+      return Object.entries(value).map(([subKey, subValue]) => {
+        // Ensure subValue is not an object itself or handle it accordingly
+        if (typeof subValue === "object") {
+          return <div key={subKey}>{subKey}: [object]</div>;
+        }
+        return (
+          <div key={subKey}>
+            <strong>{subKey}:</strong> {subValue}
+          </div>
+        );
+      });
     }
     return value; // Return the value as is if it's not an object
   };
