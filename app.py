@@ -375,6 +375,118 @@ def get_policy():
     response, status_code = fetch_data_from_table(table_name, columns)
     return jsonify(response), status_code
 
+@app.route('/set_policy', methods=['POST'])
+def set_policy():
+    """
+    Adds a policy entry to a specified table in the database.
+    The data should include the table name and the relevant entry data.
+    """
+    data = request.get_json()
+
+    # Check if the required data is present in the request
+    if "table" not in data or "values" not in data:
+        return jsonify({'status': 'error', 'message': 'Missing table or values'}), 400
+
+    table_name = data["table"]
+    values = data["values"]
+
+    # Define the available tables and their respective columns for insertion
+    table_columns = {
+        'blocked_urls': ['value', 'type'],
+        'blocked_files': ['file_hash', 'value'],
+        'blocked_mimetypes': ['value'],
+        'redirect_urls': ['type', 'value', 'proxy'],
+        'tls_excluded_hosts': ['hostname'],
+    }
+
+    # Validate the requested table name
+    if table_name not in table_columns:
+        return jsonify({'status': 'error', 'message': f'Invalid table name: {table_name}'}), 400
+
+    # Ensure that the number of values matches the number of columns
+    columns = table_columns[table_name]
+    if len(values) != len(columns):
+        return jsonify({'status': 'error', 'message': 'Incorrect number of values for the table columns'}), 400
+
+    # Create the SQL query for inserting the data
+    placeholders = ', '.join(['?'] * len(values))
+    query = f"INSERT INTO {table_name} ({', '.join(columns)}) VALUES ({placeholders})"
+
+    try:
+        # Insert the data into the specified table
+        with sqlite3.connect(DB_PATH) as conn:
+            cursor = conn.cursor()
+            cursor.execute(query, tuple(values))
+            conn.commit()
+
+        return jsonify({'status': 'success', 'message': 'Policy entry added successfully'}), 201
+
+    except sqlite3.Error as e:
+        logging.error(f"Database error: {e}")
+        return jsonify({'status': 'error', 'message': 'Failed to add policy entry'}), 500
+
+
+@app.route('/delete_policy', methods=['DELETE'])
+def delete_policy():
+    """
+    Deletes a policy entry from a specified table in the database.
+    The data should include the table name and the condition string for deletion.
+    """
+    data = request.get_json()
+
+    # Check if the required data is present in the request
+    if "table" not in data or "condition" not in data:
+        return jsonify({'status': 'error', 'message': 'Missing table or condition'}), 400
+
+    table_name = data["table"]
+    condition = data["condition"]  # Now condition is a string, not a dictionary
+
+    # Define the available tables and their columns
+    table_columns = {
+        'blocked_urls': ['value', 'type'],
+        'blocked_files': ['file_hash', 'value'],
+        'blocked_mimetypes': ['value'],
+        'redirect_urls': ['type', 'value', 'proxy'],
+        'tls_excluded_hosts': ['hostname'],
+    }
+
+    # Validate the requested table name
+    if table_name not in table_columns:
+        return jsonify({'status': 'error', 'message': f'Invalid table name: {table_name}'}), 400
+
+    # Ensure the condition string is not empty or unsafe
+    if not condition.strip():
+        return jsonify({'status': 'error', 'message': 'Condition is empty'}), 400
+
+    # Assume that the condition string corresponds to the first column if no column is specified
+    columns = table_columns.get(table_name)
+
+    # If the condition doesn't have a column name, assume the first column (e.g., "value")
+    if len(condition.split('= ')) == 1:
+        condition = f"{columns[0]} = '{condition.strip()}'"
+
+    # Build the SQL query for deletion using parameterized queries
+    query = f"DELETE FROM {table_name} WHERE {condition}"
+
+    logging.error(f"Query: {query}")
+
+    try:
+        # Execute the SQL query with parameterized values to prevent SQL injection
+        with sqlite3.connect(DB_PATH) as conn:
+            cursor = conn.cursor()
+            cursor.execute(query)  # Execute the query
+            conn.commit()
+
+        return jsonify({'status': 'success', 'message': 'Policy entry deleted successfully'}), 200
+
+    except sqlite3.Error as e:
+        logging.error(f"Database error: {e}")
+        return jsonify({'status': 'error', 'message': 'Failed to delete policy entry'}), 500
+
+
+
+
+
 
 @app.before_request
 def start_time():

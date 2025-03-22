@@ -96,6 +96,39 @@ const Policy = () => {
     setFilters(resetFilters);
   };
 
+  // Handle the delete functionality
+  const handleDelete = async (item) => {
+    const confirmDelete = window.confirm(`Are you sure you want to delete this entry?`);
+    if (confirmDelete) {
+      try {
+        // Ensure the correct 'condition' is passed, e.g., item.url or item.file_hash based on the table
+        const deleteCondition = table === "blocked_urls" ? item.url :
+                               table === "blocked_files" ? item.file_hash :
+                               table === "blocked_mimetypes" ? item.mime_type :
+                               table === "redirect_urls" ? item.source_url :
+                               table === "tls_excluded_hosts" ? item.hostname : null;
+
+        // If the delete condition is valid
+        if (deleteCondition) {
+          const response = await axios.delete("http://localhost:5000/delete_policy", {
+            data: {
+              table,      // Pass the table name
+              condition: deleteCondition, // Pass the condition (ID or unique field)
+            },
+          });
+
+          if (response.status === 200) {
+            fetchData(); // Refresh the data after deletion
+          }
+        } else {
+          setError("Invalid condition for deletion.");
+        }
+      } catch (error) {
+        setError("Error deleting data");
+      }
+    }
+  };
+
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
       <h1 className="text-2xl font-extrabold text-gray-800 mb-6">Policy Items</h1>
@@ -142,6 +175,7 @@ const Policy = () => {
                     {key.replace("_", " ").toUpperCase()}
                   </th>
                 ))}
+                <th className="border p-3 text-left">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -174,6 +208,14 @@ const Policy = () => {
                       {formatCell(item[key])}
                     </td>
                   ))}
+                  <td className="border p-3">
+                    <button
+                      onClick={() => handleDelete(item)}
+                      className="px-3 py-1 bg-red-500 text-white rounded-lg hover:bg-red-600"
+                    >
+                      Delete
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
