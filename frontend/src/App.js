@@ -1,107 +1,98 @@
-import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import axios from "axios";
 
 function Logs() {
   const [logs, setLogs] = useState([]);
+  const [columns, setColumns] = useState([]);
+  const [filters, setFilters] = useState({});
 
   useEffect(() => {
     axios.get("http://localhost:5000/logs")
       .then(response => {
         console.log("API Response:", response.data); // Debugging
-        const extractedLogs = response.data?.logs?.logs || []; // Correct extraction
-        setLogs(Array.isArray(extractedLogs) ? extractedLogs : []);
+        const extractedLogs = response.data?.logs?.logs || [];
+        if (Array.isArray(extractedLogs)) {
+          setLogs(extractedLogs);
+          if (extractedLogs.length > 0) {
+            setColumns(Object.keys(extractedLogs[0])); // Dynamically set columns
+            setFilters(Object.fromEntries(Object.keys(extractedLogs[0]).map(key => [key, ""])));
+          }
+        }
       })
       .catch(error => console.error("Error fetching logs:", error));
   }, []);
 
+  // Extract unique values for dropdowns
+  const getUniqueValues = (key) => {
+    return [...new Set(logs.map(log => (log[key] ? JSON.stringify(log[key]) : "")))].filter(value => value !== "");
+  };
+
+  const handleFilterChange = (e, column) => {
+    setFilters({ ...filters, [column]: e.target.value });
+  };
+
+  const filteredLogs = logs.filter(log =>
+    Object.keys(filters).every(key =>
+      filters[key] === "" || JSON.stringify(log[key]) === filters[key]
+    )
+  );
+
+  // Format cell content
+  const formatCell = (value) => {
+    if (typeof value === "object" && value !== null) {
+      return JSON.stringify(value); // Convert objects to JSON
+    }
+    return value;
+  };
+
   return (
     <div className="p-4">
-      <h2 className="text-xl font-bold">Logs</h2>
+      <h2 className="text-xl font-bold mb-4">Logs</h2>
       {logs.length === 0 ? (
         <p className="text-gray-500 mt-4">No logs available.</p>
       ) : (
-        <ul className="mt-4">
-          {logs.map((log, index) => (
-            <li key={index} className="border p-2 my-2 rounded">
-              <p><strong>Method:</strong> {log.method}</p>
-              <p><strong>Category:</strong> {log.category}</p>
-              <p><strong>Status:</strong> {log.status_code}</p>
-              <p><strong>Response Time:</strong> {log.response_time?.toFixed(2)}s</p>
-            </li>
-          ))}
-        </ul>
+        <div className="overflow-x-auto">
+          <table className="min-w-full border-collapse border border-gray-300">
+            <thead>
+              <tr className="bg-gray-200">
+                {columns.map((key, index) => (
+                  <th key={index} className="border p-2">
+                    {key.replace("_", " ").toUpperCase()}
+                    <select
+                      value={filters[key] || ""}
+                      onChange={(e) => handleFilterChange(e, key)}
+                      className="mt-1 p-1 w-full text-sm border rounded"
+                    >
+                      <option value="">All</option>
+                      {getUniqueValues(key).map((value, idx) => {
+                        let displayValue = value.length > 30 ? value.substring(0, 30) + "..." : value;
+                        return (
+                          <option key={idx} value={value}>
+                            {displayValue}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filteredLogs.map((log, index) => (
+                <tr key={index} className="border">
+                  {columns.map((key, idx) => (
+                    <td key={idx} className="border p-2">
+                      {formatCell(log[key])}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );
 }
 
-function BlockList() {
-  const [list, setList] = useState([]);
-  const [newItem, setNewItem] = useState("");
-
-  useEffect(() => {
-    axios.get("http://localhost:5000/blocklist")
-      .then(response => {
-        console.log("Blocklist API Response:", response.data); // Debugging
-        setList(Array.isArray(response.data.blocklist) ? response.data.blocklist : []);
-      })
-      .catch(error => console.error("Error fetching block list:", error));
-  }, []);
-
-  const addItem = () => {
-    if (!newItem.trim()) return; // Prevent empty submissions
-
-    axios.post("http://localhost:5000/blocklist", { value: newItem })
-      .then(() => {
-        setList([...list, newItem]);
-        setNewItem("");
-      })
-      .catch(error => console.error("Error adding item:", error));
-  };
-
-  return (
-    <div className="p-4">
-      <h2 className="text-xl font-bold">Block List</h2>
-      <ul className="mt-4">
-        {list.map((item, index) => (
-          <li key={index} className="border p-2 my-2 rounded">{item}</li>
-        ))}
-      </ul>
-      <div className="mt-4">
-        <input
-          type="text"
-          value={newItem}
-          onChange={e => setNewItem(e.target.value)}
-          className="border p-2"
-          placeholder="Add to block list"
-        />
-        <button
-          onClick={addItem}
-          className="bg-blue-500 text-white p-2 ml-2 rounded"
-        >
-          Add
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function App() {
-  return (
-    <Router>
-      <nav className="p-4 bg-gray-800 text-white flex space-x-4">
-        <Link to="/" className="hover:underline">Logs</Link>
-        <Link to="/blocklist" className="hover:underline">Block List</Link>
-      </nav>
-      <div className="max-w-3xl mx-auto">
-        <Routes>
-          <Route path="/" element={<Logs />} />
-          <Route path="/blocklist" element={<BlockList />} />
-        </Routes>
-      </div>
-    </Router>
-  );
-}
-
-export default App;
+export default Logs;
