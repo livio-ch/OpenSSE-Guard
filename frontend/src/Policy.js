@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 
-const Blocked = () => {
+const Policy = () => {
   const [table, setTable] = useState("blocked_urls"); // Default table
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -106,7 +106,7 @@ const Blocked = () => {
 
   return (
     <div className="p-4">
-      <h1 className="text-xl font-bold mb-4">Blocked Items</h1>
+      <h1 className="text-xl font-bold mb-4">Policy Items</h1>
 
       {/* Clear Filters Button */}
       <div className="mb-4">
@@ -195,4 +195,4 @@ const Blocked = () => {
   );
 };
 
-export default Blocked;
+export default Policy;
