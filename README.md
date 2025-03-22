@@ -1,6 +1,4 @@
-Below is an updated README that incorporates your project’s features and API endpoints, along with additional information on managing policies from both the backend and the optional React admin interface. You can copy and paste the text below into your README.md file.
 
-```markdown
 # OpenSSE-Guard 🛡️
 
 **An open-source Security Service Edge (SSE) proxy for filtering, monitoring, and redirecting HTTP traffic using mitmproxy, Flask, and a React-based admin interface.**
