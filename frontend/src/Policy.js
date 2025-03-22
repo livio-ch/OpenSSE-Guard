@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 
 const Policy = () => {
-  const [table, setTable] = useState("blocked_urls"); // Default table
+  const [table, setTable] = useState("blocked_urls");
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -25,7 +25,6 @@ const Policy = () => {
       const response = await axios.get(`http://localhost:5000/get_policy?table=${table}`);
       const fetchedData = response.data.data;
 
-      // Mapping the array-based response to an object with column headers
       const formattedData = fetchedData.map(row => {
         let formattedRow = {};
         if (table === "blocked_urls") {
@@ -48,12 +47,10 @@ const Policy = () => {
 
       setData(formattedData);
 
-      // Dynamically set columns (headers) based on the formatted data
       if (formattedData.length > 0) {
         setColumns(Object.keys(formattedData[0]));
         setFilters(Object.fromEntries(Object.keys(formattedData[0]).map(key => [key, ""])));
       }
-
     } catch (err) {
       setError("Error fetching data from the server");
     } finally {
@@ -62,10 +59,9 @@ const Policy = () => {
   };
 
   useEffect(() => {
-    fetchData(); // Fetch data when the component mounts or the table changes
+    fetchData();
   }, [table]);
 
-  // Helper function to get unique values for filter dropdown
   const getUniqueValues = (key) => {
     let values = [];
     data.forEach(item => {
@@ -77,42 +73,38 @@ const Policy = () => {
     return values.sort((a, b) => a.toString().localeCompare(b.toString()));
   };
 
-  // Handle filter changes
   const handleFilterChange = (e, column) => {
     setFilters({ ...filters, [column]: e.target.value });
   };
 
-  // Apply filters to the data
   const filteredData = data.filter(item =>
     Object.keys(filters).every(key => {
       const filterValue = filters[key].toLowerCase();
       const itemValue = item[key];
-      if (filterValue === "") return true; // If no filter, show all
+      if (filterValue === "") return true;
       return itemValue.toString().toLowerCase().includes(filterValue);
     })
   );
 
-  // Format the cell value for display
   const formatCell = (value) => {
-    if (value === null || value === undefined) return "N/A"; // Default value if the cell is null or undefined
+    if (value === null || value === undefined) return "N/A";
     return value;
   };
 
-  // Clear all filters
   const clearFilters = () => {
     const resetFilters = Object.fromEntries(Object.keys(filters).map(key => [key, ""]));
     setFilters(resetFilters);
   };
 
   return (
-    <div className="p-4">
-      <h1 className="text-xl font-bold mb-4">Policy Items</h1>
+    <div className="p-6 bg-gray-50 min-h-screen">
+      <h1 className="text-2xl font-extrabold text-gray-800 mb-6">Policy Items</h1>
 
       {/* Clear Filters Button */}
       <div className="mb-4">
         <button
           onClick={clearFilters}
-          className="px-4 py-2 bg-blue-500 text-white rounded"
+          className="px-5 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-semibold rounded-lg shadow-md hover:scale-105 transition"
         >
           Clear Filters
         </button>
@@ -122,7 +114,7 @@ const Policy = () => {
       <select
         value={table}
         onChange={(e) => setTable(e.target.value)}
-        className="mb-4 p-2 border"
+        className="mb-4 p-3 border border-gray-300 rounded-lg shadow-sm text-gray-700 focus:ring-2 focus:ring-blue-400 focus:outline-none"
       >
         {tableOptions.map((option) => (
           <option key={option.value} value={option.value}>
@@ -132,36 +124,34 @@ const Policy = () => {
       </select>
 
       {/* Show loading indicator */}
-      {loading && <p>Loading...</p>}
+      {loading && <p className="text-gray-500">Loading...</p>}
 
       {/* Show error message */}
-      {error && <p>{error}</p>}
+      {error && <p className="text-red-500">{error}</p>}
 
       {/* Display data in a table */}
       {data.length === 0 ? (
-        <p>No data available.</p>
+        <p className="text-gray-500">No data available.</p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="min-w-full border-collapse border border-gray-300">
+          <table className="min-w-full border-collapse rounded-lg shadow-md bg-white">
             <thead>
-              <tr className="bg-gray-200">
-                {/* Headers */}
+              <tr className="bg-gray-700 text-white">
                 {columns.map((key, index) => (
-                  <th key={index} className="border p-2">
+                  <th key={index} className="border p-3 text-left">
                     {key.replace("_", " ").toUpperCase()}
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {/* Filter Row */}
               <tr className="bg-gray-100">
                 {columns.map((key, index) => (
                   <td key={index} className="border p-2">
                     <select
                       value={filters[key] || ""}
                       onChange={(e) => handleFilterChange(e, key)}
-                      className="p-1 w-full text-sm border rounded"
+                      className="p-2 w-full text-sm border rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-400"
                     >
                       <option value="">-- Filter {key.replace("_", " ")} --</option>
                       {getUniqueValues(key).map((value, idx) => {
@@ -177,11 +167,10 @@ const Policy = () => {
                 ))}
               </tr>
 
-              {/* Data Rows */}
               {filteredData.map((item, index) => (
-                <tr key={index} className="border">
+                <tr key={index} className="border bg-white hover:bg-gray-100 transition">
                   {columns.map((key, idx) => (
-                    <td key={idx} className="border p-2">
+                    <td key={idx} className="border p-3 text-gray-700">
                       {formatCell(item[key])}
                     </td>
                   ))}
