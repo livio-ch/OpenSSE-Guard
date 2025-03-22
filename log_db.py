@@ -35,8 +35,9 @@ class LogDB:
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
-                cursor.execute("SELECT id,level,request,response,client_ip,user_agent,method,status_code,response_time,category,timestamp FROM logs ORDER BY timestamp DESC")  # Retrieve logs ordered by timestamp
+                cursor.execute("SELECT id, level, request, response, client_ip, user_agent, method, status_code, response_time, category, timestamp FROM logs ORDER BY timestamp DESC")
                 logs = cursor.fetchall()
+                logging.info(f"Retrieved {len(logs)} logs from the database")
 
                 # Convert the logs into a more readable format (a list of dictionaries)
                 log_entries = []
@@ -55,29 +56,25 @@ class LogDB:
                         'timestamp': log[10]
                     }
 
-                    # Deserialize 'request' and 'response' fields if they are in JSON format
-                    try:
-                        log_entry['request'] = json.loads(log_entry['request'])
-                    except json.JSONDecodeError:
-                        pass  # Ignore if it's not a valid JSON string
-
-                    try:
-                        log_entry['response'] = json.loads(log_entry['response'])
-                    except json.JSONDecodeError:
-                        pass  # Ignore if it's not a valid JSON string
-
-                    # Optionally: Deserialize 'client_ip' if it's in JSON format (if stored like this)
-                    try:
-                        log_entry['client_ip'] = json.loads(log_entry['client_ip'])
-                    except json.JSONDecodeError:
-                        pass  # Ignore if it's not a valid JSON string
+                    # Deserialize 'request', 'response', and 'client_ip' if in JSON format
+                    for field in ['request', 'response', 'client_ip']:
+                        if log_entry[field]:
+                            try:
+                                log_entry[field] = json.loads(log_entry[field])
+                            except json.JSONDecodeError as e:
+                                logging.warning(f"Failed to decode '{field}' field as JSON: {e}")
+                                pass
 
                     log_entries.append(log_entry)
 
                 return {'logs': log_entries, 'status': 'success'}
         except sqlite3.Error as e:
-            logging.error(f"Error retrieving logs: {e}")
+            logging.error(f"SQLite error retrieving logs: {e}")
             return {'logs': [], 'status': 'error'}
+        except Exception as e:
+            logging.error(f"Unexpected error: {e}")
+            return {'logs': [], 'status': 'error'}
+
 
     def log(self, level, request, response, client_ip=None, user_agent=None, method=None,
             status_code=None, response_time=None, category=None, error_message=None):

@@ -9,11 +9,12 @@ import json  # Ensure you import json at the top of your script
 import os
 import time
 from log_db import LogDB
+from flask_cors import CORS  # Import CORS
 
 from dotenv import load_dotenv  # Import dotenv
 
 app = Flask(__name__)
-
+CORS(app, origins=["http://localhost:3000"])
 
 # Load environment variables from the .env file
 load_dotenv()
@@ -324,7 +325,6 @@ def get_logs():
 
     except Exception as e:
         logging.error(f"Error fetching logs: {str(e)}")
-
         return jsonify({'status': 'error', 'message': 'Failed to fetch logs'}), 500
 
 
@@ -350,7 +350,7 @@ def log_response(response):
     log_db.log(
         level='INFO',
         request=request_data,
-        response=response_data if request.method != "GET" else "",  # Empty response for GET        client_ip=str(request.remote_addr),
+        response=response_data, # if request.method != "GET" else "N/A",  # Empty response for GET        client_ip=str(request.remote_addr),
         user_agent=str(request.headers.get('User-Agent')),
         method=request.method,
         status_code=response.status_code,

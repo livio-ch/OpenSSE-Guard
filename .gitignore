@@ -48,3 +48,13 @@ Dockerfile
 __pulsar_cache__/
 url_filter.db
 .env
+
+log?database.db
+
+# Node.js dependencies (React frontend)
+node_modules/
+npm-debug.log*
+yarn-error.log*
+.yarn/
+.pnp/
+.pnp.js
