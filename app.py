@@ -525,13 +525,14 @@ def log_response(response):
     # Log the request and response data
     log_db.log(
         level='INFO',
-        request=request_data,
-        response=response_data if request.method != "GET" else "N/A",  # Empty response for GET        client_ip=str(request.remote_addr),
+        request=request_data if request.method != "GET" else str(json.dumps(request.args.to_dict())) ,
+        response=response_data if request.method != "GET" else "N/A",  # Empty response for GET
+        client_ip=str(request.remote_addr),
         user_agent=str(request.headers.get('User-Agent')),
         method=request.method,
         status_code=response.status_code,
         response_time=response_time,
-        category=request.url  # Category can be dynamic based on the request URL
+        category=request.path  # Category can be dynamic based on the request URL
     )
 
     return response
