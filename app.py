@@ -11,7 +11,24 @@ import time
 from log_db import LogDB
 from flask_cors import CORS  # Import CORS
 
+from os import environ as env
+from dotenv import load_dotenv, find_dotenv
+from authlib.integrations.flask_oauth2 import ResourceProtector
+from validator import Auth0JWTBearerTokenValidator
+
+
+
 from dotenv import load_dotenv  # Import dotenv
+
+
+require_auth = ResourceProtector()
+
+validator = Auth0JWTBearerTokenValidator(
+"dev-qq26bf68b4ogkwa7.us.auth0.com",
+"http://localhost:5000"
+)
+require_auth.register_token_validator(validator)
+
 
 app = Flask(__name__)
 CORS(app, origins=["http://localhost:3000"])
@@ -309,6 +326,7 @@ def check_mime_type():
 
 
 @app.route('/logs', methods=['GET'])
+@require_auth("all")
 def get_logs():
     """Fetch all log entries from the log database."""
     try:
@@ -350,6 +368,7 @@ def fetch_data_from_table(table_name, columns):
 
 
 @app.route('/get_policy', methods=['GET'])
+@require_auth("all")
 def get_policy():
     """Fetch the current blocklist data based on the table specified in the query parameters."""
     # Get the table name from the query parameters
@@ -376,6 +395,7 @@ def get_policy():
     return jsonify(response), status_code
 
 @app.route('/set_policy', methods=['POST'])
+@require_auth("all")
 def set_policy():
     """
     Adds a policy entry to a specified table in the database.
@@ -443,6 +463,7 @@ def set_policy():
 
 
 @app.route('/delete_policy', methods=['DELETE'])
+@require_auth("all")
 def delete_policy():
     """
     Deletes a policy entry from a specified table in the database.

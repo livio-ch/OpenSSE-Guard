@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import { useAuth0 } from "@auth0/auth0-react";
 
 const Policy = () => {
+  const { getAccessTokenSilently, isAuthenticated } = useAuth0(); // Get Auth0 token
   const [table, setTable] = useState("blocked_urls");
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -22,9 +24,19 @@ const Policy = () => {
   const fetchData = async () => {
     setLoading(true);
     setError(null);
-
     try {
-      const response = await axios.get(`http://localhost:5000/get_policy?table=${table}`);
+      const token = await getAccessTokenSilently();
+      if (!token) {
+        setError("No token available");
+        return;
+      }
+
+      const response = await axios.get(`http://localhost:5000/get_policy?table=${table}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`, // Attach token here
+        },
+      });
+
       const fetchedData = response.data.data;
 
       const formattedData = fetchedData.map(row => {
@@ -61,8 +73,10 @@ const Policy = () => {
   };
 
   useEffect(() => {
-    fetchData();
-  }, [table]);
+    if (isAuthenticated) {
+      fetchData();
+    }
+  }, [isAuthenticated, table]);
 
   const getUniqueValues = (key) => {
     let values = [];
@@ -98,11 +112,17 @@ const Policy = () => {
     setFilters(resetFilters);
   };
 
-  // Handle the delete functionality
+  // Handle the delete functionality with token authentication
   const handleDelete = async (item) => {
     const confirmDelete = window.confirm(`Are you sure you want to delete this entry?`);
     if (confirmDelete) {
       try {
+        const token = await getAccessTokenSilently(); // Get Auth0 token
+        if (!token) {
+          setError("No token available");
+          return;
+        }
+
         const deleteCondition = table === "blocked_urls" ? item.url :
                                table === "blocked_files" ? item.file_hash :
                                table === "blocked_mimetypes" ? item.mime_type :
@@ -114,6 +134,9 @@ const Policy = () => {
             data: {
               table,
               condition: deleteCondition,
+            },
+            headers: {
+              Authorization: `Bearer ${token}`, // Attach token to request header
             },
           });
 
@@ -129,15 +152,30 @@ const Policy = () => {
     }
   };
 
-  // Handle adding new item
+
+  // Handle adding new item with token authentication
   const handleAddItem = async () => {
     try {
-      const response = await axios.post("http://localhost:5000/set_policy", {
-        table,
-        data: newItem,
-      });
+      const token = await getAccessTokenSilently(); // Get Auth0 token
+      if (!token) {
+        setError("No token available");
+        return;
+      }
 
-      // Adjusted to check for either 200 or 201 status codes.
+      const response = await axios.post(
+        "http://localhost:5000/set_policy",
+        {
+          table,
+          data: newItem,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`, // Attach token to request header
+          },
+        }
+      );
+
+      // Check for success status codes (200 or 201)
       if (response.status === 200 || response.status === 201) {
         setShowAddForm(false); // Hide form after submission
         fetchData(); // Refresh the data after adding new item
@@ -146,6 +184,7 @@ const Policy = () => {
       setError("Error adding new item");
     }
   };
+
 
   // Handle form input change for new item
   const handleInputChange = (e) => {

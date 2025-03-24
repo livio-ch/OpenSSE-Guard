@@ -6,3 +6,4 @@ pytest
 python-magic-bin
 python-dotenv
 flask-cors
+pyjwt

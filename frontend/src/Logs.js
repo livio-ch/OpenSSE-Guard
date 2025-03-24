@@ -1,38 +1,72 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
+import { useAuth0 } from "@auth0/auth0-react";
+import { jwtDecode } from "jwt-decode";
 
 function Logs() {
+  const { getAccessTokenSilently, isAuthenticated } = useAuth0(); // Get Auth0 token
   const [logs, setLogs] = useState([]);
   const [columns, setColumns] = useState([]);
   const [filters, setFilters] = useState({});
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false); // Loading state
 
   useEffect(() => {
-    axios.get("http://localhost:5000/logs")
-      .then(response => {
-        console.log("API Response:", response.data); // Debugging
-        const extractedLogs = response.data?.logs?.logs || [];
-        if (Array.isArray(extractedLogs)) {
-          setLogs(extractedLogs);
-          if (extractedLogs.length > 0) {
-            const firstLog = extractedLogs[0];
-            setColumns(Object.keys(firstLog)); // Dynamically set columns
-            setFilters(Object.fromEntries(Object.keys(firstLog).map(key => [key, ""])));
-          }
-        }
-      })
-      .catch(error => console.error("Error fetching logs:", error));
-  }, []);
+    if (isAuthenticated) {
+      // Function to fetch logs from the API
+      const fetchLogs = async () => {
+        setLoading(true); // Set loading to true when fetching data
+        try {
+          // Get the token from Auth0
+          const token = await getAccessTokenSilently();
+          console.log("Token:", token);  // Debugging the token
 
-  // Helper function to check if a nested value matches the filter
+          if (!token) {
+            setError("No token available");
+            return;
+          }
+          console.log("Token structure:", token.split('.')); // Split the token into parts
+          // Decode the JWT and check the kid
+    //      const decodedToken = jwtDecode(token);
+    //      console.log("Decoded Token:", decodedToken);
+    //      console.log("Kid from Token:", decodedToken.kid);
+
+          // Send the token with the request
+          const response = await axios.get("http://localhost:5000/logs", {
+            headers: {
+            'Authorization': `Bearer ${token}`, // Attach token here
+            },
+          });
+
+          console.log("Request headers:", response.config.headers); // Debugging the request headers
+
+          // Handle the API response
+          const extractedLogs = response.data?.logs?.logs || [];
+          if (Array.isArray(extractedLogs)) {
+            setLogs(extractedLogs);
+            if (extractedLogs.length > 0) {
+              const firstLog = extractedLogs[0];
+              setColumns(Object.keys(firstLog)); // Dynamically set columns
+              setFilters(Object.fromEntries(Object.keys(firstLog).map(key => [key, ""])));
+            }
+          }
+        } catch (error) {
+          setError("Error fetching logs: " + error.message);
+          console.error("Error fetching logs:", error);
+        } finally {
+          setLoading(false); // Set loading to false after the data is fetched
+        }
+      };
+
+      fetchLogs();
+    }
+  }, [getAccessTokenSilently, isAuthenticated]);
+
   const checkIfValueMatchesFilter = (value, filterValue) => {
     if (value === null || value === undefined) return false;
-
-    // If the value is a string or number, check if it includes the filter
     if (typeof value === "string" || typeof value === "number") {
       return value.toString().toLowerCase().includes(filterValue.toLowerCase());
     }
-
-    // If the value is an object, check its properties recursively
     if (typeof value === "object" && value !== null) {
       for (let key in value) {
         if (checkIfValueMatchesFilter(value[key], filterValue)) {
@@ -40,21 +74,15 @@ function Logs() {
         }
       }
     }
-
     return false;
   };
 
-  // Function to get unique filter values for a given column, including nested object keys
   const getUniqueValues = (key, logsToFilter) => {
     let values = [];
-
     logsToFilter.forEach(log => {
       const value = log[key];
-
       if (value === null || value === undefined) return;
-
       if (typeof value === "object" && value !== null) {
-        // If the value is an object, we check its keys and values for uniqueness
         Object.entries(value).forEach(([subKey, subValue]) => {
           if (typeof subValue === "string" || typeof subValue === "number") {
             values.push(subValue);
@@ -64,39 +92,26 @@ function Logs() {
         values.push(value);
       }
     });
-
-    // Remove duplicates and sort the values alphabetically
     return [...new Set(values)].filter(value => value !== "").sort((a, b) => a.toString().localeCompare(b.toString()));
   };
 
-  // Handle filter changes
   const handleFilterChange = (e, column) => {
     setFilters({ ...filters, [column]: e.target.value });
   };
 
-  // Apply filters to the logs
   const filteredLogs = logs.filter(log =>
     Object.keys(filters).every(key => {
       const filterValue = filters[key].toLowerCase();
       const logValue = log[key];
-
-      // If the filter is empty, show the log
       if (filterValue === "") return true;
-
-      // Apply recursive check to handle nested JSON objects
       return checkIfValueMatchesFilter(logValue, filterValue);
     })
   );
 
-  // Format the cell value for display
   const formatCell = (value) => {
-    if (value === null || value === undefined) {
-      return "N/A"; // Default value if the cell is null or undefined
-    }
+    if (value === null || value === undefined) return "N/A";
     if (typeof value === "object" && value !== null) {
-      // If the value is a JSON object, unpack and display its properties
       return Object.entries(value).map(([subKey, subValue]) => {
-        // Ensure subValue is not an object itself or handle it accordingly
         if (typeof subValue === "object") {
           return <div key={subKey}>{subKey}: [object]</div>;
         }
@@ -107,10 +122,9 @@ function Logs() {
         );
       });
     }
-    return value; // Return the value as is if it's not an object
+    return value;
   };
 
-  // Clear all filters
   const clearFilters = () => {
     const resetFilters = Object.fromEntries(Object.keys(filters).map(key => [key, ""]));
     setFilters(resetFilters);
@@ -120,7 +134,12 @@ function Logs() {
     <div className="p-4">
       <h2 className="text-xl font-bold mb-4">Logs</h2>
 
-      {/* Clear Filters Button */}
+      {/* Loading Spinner */}
+      {loading && <p className="text-gray-500 mt-4">Loading...</p>}
+
+      {/* Error Message */}
+      {error && <p className="text-red-500">{error}</p>}
+
       <button
         onClick={clearFilters}
         className="mb-4 px-4 py-2 bg-blue-500 text-white rounded"
@@ -128,7 +147,7 @@ function Logs() {
         Clear Filters
       </button>
 
-      {logs.length === 0 ? (
+      {logs.length === 0 && !loading ? (
         <p className="text-gray-500 mt-4">No logs available.</p>
       ) : (
         <div className="overflow-x-auto">
@@ -144,7 +163,6 @@ function Logs() {
             </thead>
             <tbody>
               <tr>
-                {/* Filter dropdowns for each column */}
                 {columns.map((key, index) => (
                   <td key={index} className="border p-2">
                     <select
