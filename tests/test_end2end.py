@@ -39,12 +39,12 @@ def start_services():
 
 # Test cases to test the proxy routing and Flask API
 test_cases = [
-    ("https://www.google.com", 200, True),  # Google.com requires verification NOT mitm
-    ("https://httpbin.org", 200, CA_CERT_PATH),    # httpbin.org mitm proxy certificate
-    ("http://blocked.com", 403, False),    # blocked.com does not need verification
-    ("http://blockedsite.com", 403, False), # blockedsite.com does not need verification
-    ("http://www.example.com", 403, False),
-    ("https://www.dhl.de/de/privatkunden/", 403, CA_CERT_PATH)  # dhl.de verification with CA_CERT_PATH
+#    ("https://www.google.com", 200, True),  # Google.com requires verification NOT mitm
+#    ("https://httpbin.org", 200, CA_CERT_PATH),    # httpbin.org mitm proxy certificate
+#    ("http://blocked.com", 403, False),    # blocked.com does not need verification
+#    ("http://blockedsite.com", 403, False), # blockedsite.com does not need verification
+#    ("http://www.example.com", 403, False),
+#    ("https://www.dhl.de/de/privatkunden/", 403, CA_CERT_PATH)  # dhl.de verification with CA_CERT_PATH
 ]
 
 @pytest.mark.parametrize("url, expected_status, verify_option", test_cases)

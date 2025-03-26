@@ -35,25 +35,51 @@ function App() {
 
   return (
     <Router>
-      <nav className="p-4 bg-gray-900 text-white flex justify-center gap-6 shadow-lg">
-        <Link to="/" className="hover:text-blue-400 transition">Logs</Link>
-        <Link to="/policy" className="hover:text-blue-400 transition">Policy</Link>
-        {!isAuthenticated ? (
-          <button onClick={() => loginWithRedirect()}>Log in</button>
-        ) : (
-          <div>
-            <span>Welcome, {user.name}</span>
-            <button onClick={() => logout({ returnTo: window.location.origin })}>Log out</button>
-            <button onClick={fetchProtectedData}>Access Protected API</button>
-          </div>
-        )}
+      <nav className="p-4 bg-gray-900 text-white flex justify-between items-center shadow-lg">
+        <div className="flex gap-6">
+          {isAuthenticated ? (
+            <>
+              <Link to="/" className="text-lg hover:text-blue-400 transition">Logs</Link>
+              <Link to="/policy" className="text-lg hover:text-blue-400 transition">Policy</Link>
+            </>
+          ) : null}
+        </div>
+
+        {/* This div will grow to fill the available space and push login/logout to the far right */}
+        <div className="flex-grow"></div>
+
+        <div>
+          {!isAuthenticated ? (
+            <a
+              href="#"
+              onClick={() => loginWithRedirect()}
+              className="text-lg hover:text-blue-400 transition cursor-pointer"
+            >
+              Log in
+            </a>
+          ) : (
+            <a
+              href="#"
+              onClick={() => logout({ returnTo: window.location.origin })}
+              className="text-lg hover:text-blue-400 transition cursor-pointer"
+            >
+              Log out
+            </a>
+          )}
+        </div>
       </nav>
+
       <div className="max-w-5xl mx-auto p-6">
         <Routes>
-          <Route path="/" element={<Logs />} />
-          <Route path="/policy" element={<Policy />} />
+          {isAuthenticated && (
+            <>
+              <Route path="/" element={<Logs />} />
+              <Route path="/policy" element={<Policy />} />
+            </>
+          )}
         </Routes>
       </div>
+
       {/* Show API response */}
       {apiResponse && <pre>{JSON.stringify(apiResponse, null, 2)}</pre>}
     </Router>

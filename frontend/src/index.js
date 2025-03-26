@@ -17,7 +17,7 @@ root.render(
     authorizationParams={{
       redirect_uri: window.location.origin,
       audience: "http://localhost:5000",
-      scope: "all"
+      scope: "admin user"
     }}
   >
     <React.StrictMode>

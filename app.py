@@ -10,14 +10,14 @@ import os
 import time
 from log_db import LogDB
 from flask_cors import CORS  # Import CORS
-
+import jwt
+from jwt.exceptions import PyJWTError
 from os import environ as env
 from dotenv import load_dotenv, find_dotenv
 from authlib.integrations.flask_oauth2 import ResourceProtector
 from validator import Auth0JWTBearerTokenValidator
-
-
-
+from functools import wraps
+import base64
 from dotenv import load_dotenv  # Import dotenv
 
 
@@ -45,6 +45,47 @@ DB_PATH = "url_filter.db"  # Path to SQLite database
 OTX_API_KEY = os.getenv('OTX_API_KEY')  # Retrieve the API key from the .env file
 OTX_API_URL = 'https://otx.alienvault.com/api/v1/indicators/domain/{}/general'  # OTX API URL for domain check
 log_db = LogDB()  # Create an instance of the LogDB class for logging
+
+
+def require_roles(roles):
+    """ A decorator to check if the user has the required roles in the token """
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            token = request.headers.get("Authorization", "").split("Bearer ")[-1]
+
+            if not token:
+                return jsonify({"status": "error", "message": "Token missing"}), 401
+
+            # Split the token by the dots
+            token_parts = token.split('.')
+
+            # Check if the token is well-formed and has three parts
+            if len(token_parts) >= 3:
+                payload = token_parts[1]  # The second part (index 1) is the payload
+
+                # Decode the Base64 payload
+                decoded_payload = base64.urlsafe_b64decode(payload + "==")  # Adding '==' to pad the Base64 string if necessary
+                decoded_payload = decoded_payload.decode('utf-8')  # Decode bytes to string
+
+                # Parse the decoded payload into a dictionary
+                payload_data = json.loads(decoded_payload)
+
+                # Get the roles from the payload (make sure the key exists)
+                user_roles = payload_data.get("https://yourdomain.com/claims/roles", [])
+                print(f"User Roles: {user_roles}")
+
+                # Check if the required role(s) exist in the token's roles
+                if not set(roles).issubset(set(user_roles)):
+                    return jsonify({"status": "error", "message": "Insufficient permissions"}), 403
+
+            else:
+                return jsonify({"status": "error", "message": "Invalid token format"}), 400
+
+            return func(*args, **kwargs)
+        return wrapper
+    return decorator
+
 
 # Helper Functions
 def get_domain(url):
@@ -221,6 +262,8 @@ def check_file_hash_in_db(file_hash):
     return None  # Not blocked
 
 @app.route('/checkHash', methods=['POST'])
+@require_auth(["user"])
+@require_roles(["user"])
 def check_file_and_url():
     """Check both file hash and URL for block status (local database + OTX)."""
 
@@ -249,6 +292,8 @@ def check_file_and_url():
     return response
 
 @app.route('/checkUrl', methods=['POST'])
+@require_auth(["user"])
+@require_roles(["user"])
 def check_url():
 
     data = request.get_json()
@@ -307,6 +352,8 @@ def check_mime_type_in_db(mime_type):
     return None
 
 @app.route('/checkMimeType', methods=['POST'])
+@require_auth(["user"])
+@require_roles(["user"])
 def check_mime_type():
     data = request.get_json()
 
@@ -326,9 +373,11 @@ def check_mime_type():
 
 
 @app.route('/logs', methods=['GET'])
-@require_auth("all")
+@require_auth(["admin"])
+@require_roles(["admin"])
 def get_logs():
-    """Fetch all log entries from the log database."""
+
+
     try:
         # Get all logs from the database using LogDB class
         logs = log_db.get_all_logs()  # Make sure to implement this method in your log_db.py
@@ -368,7 +417,8 @@ def fetch_data_from_table(table_name, columns):
 
 
 @app.route('/get_policy', methods=['GET'])
-@require_auth("all")
+@require_auth(["admin"])
+@require_roles(["user"])
 def get_policy():
     """Fetch the current blocklist data based on the table specified in the query parameters."""
     # Get the table name from the query parameters
@@ -395,7 +445,8 @@ def get_policy():
     return jsonify(response), status_code
 
 @app.route('/set_policy', methods=['POST'])
-@require_auth("all")
+@require_auth(["admin"])
+@require_roles(["admin"])
 def set_policy():
     """
     Adds a policy entry to a specified table in the database.
@@ -463,7 +514,8 @@ def set_policy():
 
 
 @app.route('/delete_policy', methods=['DELETE'])
-@require_auth("all")
+@require_auth(["admin"])
+@require_roles(["admin"])
 def delete_policy():
     """
     Deletes a policy entry from a specified table in the database.

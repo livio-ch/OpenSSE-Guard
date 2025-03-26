@@ -2,11 +2,26 @@ import pytest
 import subprocess
 import sys
 import os
-
+from unittest.mock import patch
 # Add the root directory to sys.path to make 'app' accessible
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from app import app  # Import your Flask app
+from undecorated import undecorated
+
+
+
+@pytest.fixture(autouse=True)
+def undecorate_all_views():
+    """Undecorate all view functions in the app before running tests."""
+    # Loop through all registered views in the Flask app
+    for rule, view_func in app.view_functions.items():
+        # Replace each view function with its undecorated version
+        app.view_functions[rule] = undecorated(view_func)
+    yield  # Allow the test to run
+    # No need to revert back since each test will start with the undecorated version
+
+
 
 # Use pytest's fixture to set up the test client
 @pytest.fixture(scope="module", autouse=True)
@@ -29,6 +44,9 @@ def client():
     with app.test_client() as client:
         yield client
 
+
+
+    # Mocking the decorators for testing
 
 def test_missing_url(client):
     """Test when no URL is provided in the request."""
