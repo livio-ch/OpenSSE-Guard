@@ -17,6 +17,7 @@ class LogDB:
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     timestamp TEXT,
                     level TEXT,
+                    user TEXT,
                     request TEXT,
                     response TEXT,
                     client_ip TEXT,
@@ -35,7 +36,7 @@ class LogDB:
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
-                cursor.execute("SELECT id, level, request, response, client_ip, user_agent, method, status_code, response_time, category, timestamp FROM logs ORDER BY timestamp DESC")
+                cursor.execute("SELECT id, level, user, request, response, client_ip, user_agent, method, status_code, response_time, category, timestamp FROM logs ORDER BY timestamp DESC")
                 logs = cursor.fetchall()
                 logging.info(f"Retrieved {len(logs)} logs from the database")
 
@@ -45,24 +46,25 @@ class LogDB:
                     log_entry = {
                         'id': log[0],
                         'level': log[1],
-                        'request': log[2],
-                        'response': log[3],
-                        'client_ip': log[4],
-                        'user_agent': log[5],
-                        'method': log[6],
-                        'status_code': log[7],
-                        'response_time': log[8],
-                        'category': log[9],
-                        'timestamp': log[10]
+                        'user' : log[2],
+                        'request': log[3],
+                        'response': log[4],
+                        'client_ip': log[5],
+                        'user_agent': log[6],
+                        'method': log[7],
+                        'status_code': log[8],
+                        'response_time': log[9],
+                        'category': log[10],
+                        'timestamp': log[11]
                     }
 
                     # Deserialize 'request', 'response', and 'client_ip' if in JSON format
-                    for field in ['request', 'response', 'client_ip']:
+                    for field in ['request', 'response']:
                         if log_entry[field]:
                             try:
                                 log_entry[field] = json.loads(log_entry[field])
                             except json.JSONDecodeError as e:
-                                logging.warning(f"Failed to decode '{field}' field as JSON: {e}")
+                        #        logging.warning(f"Failed to decode '{field}' field as JSON: {e}")
                                 pass
 
                     log_entries.append(log_entry)
@@ -76,18 +78,18 @@ class LogDB:
             return {'logs': [], 'status': 'error'}
 
 
-    def log(self, level, request, response, client_ip=None, user_agent=None, method=None,
+    def log(self, level, user, request, response, client_ip=None, user_agent=None, method=None,
             status_code=None, response_time=None, category=None, error_message=None):
         """Insert a log entry into the database."""
         timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
-                cursor.execute('''INSERT INTO logs (timestamp, level, request, response, client_ip,
+                cursor.execute('''INSERT INTO logs (timestamp, level, user, request, response, client_ip,
                                                    user_agent, method, status_code, response_time,
                                                    category, error_message)
-                                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-                               (timestamp, level, request, response, client_ip, user_agent, method,
+                                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+                               (timestamp, level, user, request, response, client_ip, user_agent, method,
                                 status_code, response_time, category, error_message))
                 conn.commit()
         except sqlite3.Error as e:

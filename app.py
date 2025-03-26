@@ -1,6 +1,6 @@
 import logging
 import sqlite3
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, g
 import tldextract
 import re
 from urllib.parse import urlparse
@@ -73,7 +73,8 @@ def require_roles(roles):
 
                 # Get the roles from the payload (make sure the key exists)
                 user_roles = payload_data.get("https://yourdomain.com/claims/roles", [])
-                print(f"User Roles: {user_roles}")
+                g.sub = payload_data.get("sub", [])
+                print(f"User {g.sub} Roles: {user_roles}")
 
                 # Check if the required role(s) exist in the token's roles
                 if not set(roles).issubset(set(user_roles)):
@@ -596,8 +597,14 @@ def log_response(response):
         response_data = response.get_data(as_text=True)
 # TODO add a ignore for the get all logs (or at least do not put the response data in ...)
     # Log the request and response data
+    if hasattr(g, 'sub'):
+        myuser = g.sub
+    else:
+        myuser = "unknown"
+
     log_db.log(
         level='INFO',
+        user=myuser,
         request=request_data if request.method != "GET" else str(json.dumps(request.args.to_dict())) ,
         response=response_data if request.method != "GET" else "N/A",  # Empty response for GET
         client_ip=str(request.remote_addr),

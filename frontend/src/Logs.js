@@ -19,17 +19,11 @@ function Logs() {
         try {
           // Get the token from Auth0
           const token = await getAccessTokenSilently();
-          console.log("Token:", token);  // Debugging the token
-
           if (!token) {
             setError("No token available");
             return;
           }
-          console.log("Token structure:", token.split('.')); // Split the token into parts
-          // Decode the JWT and check the kid
-    //      const decodedToken = jwtDecode(token);
-    //      console.log("Decoded Token:", decodedToken);
-    //      console.log("Kid from Token:", decodedToken.kid);
+
 
           // Send the token with the request
           const response = await axios.get("http://localhost:5000/logs", {
@@ -38,7 +32,6 @@ function Logs() {
             },
           });
 
-          console.log("Request headers:", response.config.headers); // Debugging the request headers
 
           // Handle the API response
           const extractedLogs = response.data?.logs?.logs || [];
