@@ -1,7 +1,13 @@
-
 # OpenSSE-Guard 🛡️
 
 **An open-source Security Service Edge (SSE) proxy for filtering, monitoring, and redirecting HTTP traffic using mitmproxy, Flask, and a React-based admin interface.**
+
+---
+
+## ⚠️ Disclaimer  
+
+🚧 **This is a playground project and should not be used in production.**  
+OpenSSE-Guard was heavily developed with the support of AI (such as ChatGPT) and is still in an experimental stage. Expect incomplete features, potential security issues, and breaking changes. Use at your own risk.  
 
 ---
 
@@ -14,7 +20,7 @@ OpenSSE-Guard is a lightweight security tool that intercepts HTTP(S) traffic, an
 - **Forwarding requests to a different proxy when needed**
 
 Built with **mitmproxy** and **Flask**, OpenSSE-Guard acts as a dynamic security gateway—ideal for enterprise security, content filtering, and web traffic control.  
-*This is a playground project and should probably not be used in production.*
+**Authentication is handled using Auth0 for secure access control.**
 
 ---
 
@@ -24,6 +30,7 @@ Built with **mitmproxy** and **Flask**, OpenSSE-Guard acts as a dynamic security
 - **Dynamic Proxy Forwarding:** Reroute requests to another proxy when necessary.
 - **Policy CRUD Operations:** Create, read, update (if implemented), and delete policy entries via a RESTful API.
 - **React Admin Interface:** Manage policies through a dynamic web interface with filtering, sorting, and add/delete functionality.
+- **Authentication with Auth0:** Secure user authentication and role-based access control.
 - **Security-First Design:** Helps enforce **SSE (Security Service Edge)** policies.
 - **Stream Handling & Content Analysis:** Intercepts and processes HTTP responses with content-based rules.
 - **Threat Intelligence Integration:** Validate URLs and file hashes against the AlienVault OTX API.
@@ -75,6 +82,8 @@ Create a `.env` file in your project root (or backend directory) with content si
 ```dotenv
 OTX_API_KEY=your_otx_api_key_here
 DB_PATH=url_filter.db
+AUTH0_DOMAIN=your_auth0_domain
+AUTH0_AUDIENCE=your_auth0_audience
 ```
 
 *Tip:* Ensure your `.env` is listed in `.gitignore` to avoid committing sensitive data.
@@ -135,10 +144,13 @@ Open [http://localhost:3000](http://localhost:3000) in your browser to access th
 2. **Policy Evaluation:**  
    The intercepted requests are forwarded to the Flask API, which checks URLs against allowlists, blocklists, and threat intelligence (via OTX).
 
-3. **Policy Actions:**  
+3. **Authentication & Authorization:**  
+   Access to the API and admin interface is secured with Auth0, ensuring only authorized users can manage policies.
+
+4. **Policy Actions:**  
    Based on security rules, the proxy will block, allow, or redirect traffic.
 
-4. **Policy Management:**  
+5. **Policy Management:**  
    Use the API endpoints (or React admin interface) to manage policies:
    - Add new policies
    - Retrieve existing policies
@@ -236,4 +248,3 @@ For questions or discussions, please use GitHub Issues or open a discussion.
 ---
 
 🚀 **Secure your web traffic with OpenSSE-Guard today!**
-```
