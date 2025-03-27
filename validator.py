@@ -8,9 +8,7 @@ class Auth0JWTBearerTokenValidator(JWTBearerTokenValidator):
     def __init__(self, domain, audience):
         issuer = f"https://{domain}/"
         try:
-            logging.error(f"{issuer}.well-known/jwks.json")
             jsonurl = urlopen(f"{issuer}.well-known/jwks.json")
-            logging.error(f"JSON URL: {jsonurl}")
             public_key = JsonWebKey.import_key_set(
                 json.loads(jsonurl.read())
             )

@@ -20,21 +20,31 @@ from functools import wraps
 import base64
 from dotenv import load_dotenv  # Import dotenv
 
+# Load environment variables from the .env file
+load_dotenv()
+
 
 require_auth = ResourceProtector()
 
-validator = Auth0JWTBearerTokenValidator(
-"dev-qq26bf68b4ogkwa7.us.auth0.com",
-"http://localhost:5000"
-)
+
+auth0_domain = os.getenv("AUTH0_DOMAIN")
+auth0_audience = os.getenv("AUTH0_AUDIENCE")
+
+
+if not auth0_domain or not auth0_audience:
+    raise ValueError("AUTH0_DOMAIN and AUTH0_AUDIENCE must be set in the environment variables.")
+
+validator = Auth0JWTBearerTokenValidator(auth0_domain, auth0_audience)
+
+
+
 require_auth.register_token_validator(validator)
 
 
 app = Flask(__name__)
 CORS(app, origins=["http://localhost:3000"])
 
-# Load environment variables from the .env file
-load_dotenv()
+
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
