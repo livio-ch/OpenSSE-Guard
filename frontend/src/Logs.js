@@ -103,20 +103,37 @@ function Logs() {
 
   const formatCell = (value) => {
     if (value === null || value === undefined) return "N/A";
+
+    // If the value is a string, truncate it to 100 characters
+    if (typeof value === "string" && value.length > 100) {
+      return (
+        <span title={value}>{value.substring(0, 100) + "..."}</span> // Truncate and add ellipsis with tooltip
+      );
+    }
+
+    // If the value is an object, format it accordingly
     if (typeof value === "object" && value !== null) {
       return Object.entries(value).map(([subKey, subValue]) => {
+        // Truncate the subKey if it's too long
+        const truncatedSubKey = subKey.length > 100 ? subKey.substring(0, 100) + "..." : subKey;
+
         if (typeof subValue === "object") {
-          return <div key={subKey}>{subKey}: [object]</div>;
+          return <div key={subKey} title={JSON.stringify(subValue)}>{truncatedSubKey}: [object]</div>;
         }
+        // Truncate the subValue if it's a string and too long
+        const truncatedSubValue = typeof subValue === "string" && subValue.length > 100 ? subValue.substring(0, 100) + "..." : subValue;
+
         return (
-          <div key={subKey}>
-            <strong>{subKey}:</strong> {subValue}
+          <div key={subKey} title={subValue}>
+            <strong>{truncatedSubKey}:</strong> {truncatedSubValue}
           </div>
         );
       });
     }
+
     return value;
   };
+
 
   const clearFilters = () => {
     const resetFilters = Object.fromEntries(Object.keys(filters).map(key => [key, ""]));
