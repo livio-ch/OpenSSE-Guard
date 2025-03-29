@@ -20,6 +20,8 @@ from functools import wraps
 import base64
 from dotenv import load_dotenv  # Import dotenv
 
+import cache  # Import your cache module
+
 # Load environment variables from the .env file
 load_dotenv()
 
@@ -137,7 +139,7 @@ def get_block_status(url):
             return {'status': 'blocked', 'message': message}
 
     # Check OTX for IOC (Indicator of Compromise)
-    ioc_status = check_otx_for_ioc(domain)
+    ioc_status = _for_ioc(domain)
     logging.info(f"Domain {domain} isioc status {ioc_status}.")
     if ioc_status and ioc_status.get('verdict') != 'Whitelisted':
         # If it's an IOC and not whitelisted, block the request
@@ -146,60 +148,72 @@ def get_block_status(url):
     return None  # Not blocked
 
 
-def check_otx_for_ioc(domain):
+def _for_ioc(domain):
     """Check the domain against OTX and extract Facts & Verdict."""
-    headers = {'X-OTX-API-KEY': OTX_API_KEY}
-    response = requests.get(OTX_API_URL.format(domain), headers=headers)
+    cached_response = cache.get_cache(domain)
+    logging.info(f"GOT cached response: {cached_response}")
+    if  cached_response:
+        logging.info(f"if start")
+        response = cached_response
+        logging.info(f"if ends")
+    else:
+        headers = {'X-OTX-API-KEY': OTX_API_KEY}
+        response = requests.get(OTX_API_URL.format(domain), headers=headers)
+        if response.status_code != 200:
+            logging.error(f"OTX API call failed for domain {domain} with status code {response.status_code}")
+            return None
+        response=response.json()
+        cache.set_cache(domain,response)
+        logging.error(f"SET CACHE DONE")
 
-    if response.status_code == 200:
-        data = response.json()
 
-        # Check if pulse_info count is 0
-        pulse_info = data.get('pulse_info', {})
-        pulse_count = pulse_info.get('count', 0)
+    logging.info(f"response data json transform")
+    data = response
 
-        if pulse_count == 0:
-            logging.info(f"Domain {domain} has pulse count 0, not blocking.")
-            return None  # No pulses, so don't block
+    # Check if pulse_info count is 0
+    pulse_info = data.get('pulse_info', {})
+    pulse_count = pulse_info.get('count', 0)
+    logging.info(f"Do pulse count")
+
+    if pulse_count == 0:
+        logging.info(f"Domain {domain} has pulse count 0, not blocking.")
+        return None  # No pulses, so don't block
 
         # Extract the validation list that contains information about whitelist
-        validations = data.get('validation', [])
+    validations = data.get('validation', [])
 
         # Check if any of the validation sources are "whitelist"
-        for validation in validations:
-            if validation.get('source') == 'whitelist':
-                logging.info(f"Domain {domain} is whitelisted. Not blocking.")
-                return None  # Domain is whitelisted, so we don't block it
+    for validation in validations:
+        if validation.get('source') == 'whitelist':
+            logging.info(f"Domain {domain} is whitelisted. Not blocking.")
+            return None  # Domain is whitelisted, so we don't block it
 
-        # If it's not whitelisted, check for other IOC information (verdict)
-        facts = data.get('facts', {})
-        verdict = facts.get('verdict', 'Unknown')
+    # If it's not whitelisted, check for other IOC information (verdict)
+    facts = data.get('facts', {})
+    verdict = facts.get('verdict', 'Unknown')
 
-        # Extract other relevant details from 'facts'
-        ip_addresses = facts.get('current_ip_addresses', [])
-        current_asns = facts.get('current_asns', [])
-        current_nameservers = facts.get('current_nameservers', [])
-        ssl_certificates = facts.get('ssl_certificates', [])
+    # Extract other relevant details from 'facts'
+    ip_addresses = facts.get('current_ip_addresses', [])
+    current_asns = facts.get('current_asns', [])
+    current_nameservers = facts.get('current_nameservers', [])
+    ssl_certificates = facts.get('ssl_certificates', [])
 
-        # Logging the extracted information in a readable format
-        logging.info(f"OTX Verdict for {domain}: {verdict}")
-        logging.info(f"OTX IP Addresses for {domain}: {json.dumps(ip_addresses, indent=4)}")
-        logging.info(f"OTX Current ASNs for {domain}: {json.dumps(current_asns, indent=4)}")
-        logging.info(f"OTX Current Nameservers for {domain}: {json.dumps(current_nameservers, indent=4)}")
-        logging.info(f"OTX SSL Certificates for {domain}: {json.dumps(ssl_certificates, indent=4)}")
+    # Logging the extracted information in a readable format
+    logging.info(f"OTX Verdict for {domain}: {verdict}")
+    logging.info(f"OTX IP Addresses for {domain}: {json.dumps(ip_addresses, indent=4)}")
+    logging.info(f"OTX Current ASNs for {domain}: {json.dumps(current_asns, indent=4)}")
+    logging.info(f"OTX Current Nameservers for {domain}: {json.dumps(current_nameservers, indent=4)}")
+    logging.info(f"OTX SSL Certificates for {domain}: {json.dumps(ssl_certificates, indent=4)}")
 
-        # Return the IOC info (but only if it's not whitelisted)
-        return {
-            'verdict': verdict,
-            'ip_addresses': ip_addresses,
-            'current_asns': current_asns,
-            'current_nameservers': current_nameservers,
-            'ssl_certificates': ssl_certificates
-        }
+    # Return the IOC info (but only if it's not whitelisted)
+    return {
+        'verdict': verdict,
+        'ip_addresses': ip_addresses,
+        'current_asns': current_asns,
+        'current_nameservers': current_nameservers,
+        'ssl_certificates': ssl_certificates
+    }
 
-    else:
-        logging.error(f"OTX API call failed for domain {domain} with status code {response.status_code}")
-        return None
 
 
 
@@ -228,17 +242,26 @@ def is_tls_excluded(hostname):
     return query_database("SELECT hostname FROM tls_excluded_hosts WHERE hostname = ?", (hostname,)) is not None
 
 
-def check_otx_for_file_hash(file_hash):
+def _for_file_hash(file_hash):
     """Check the file hash against OTX and extract relevant threat information."""
-    headers = {'X-OTX-API-KEY': OTX_API_KEY}
-    response = requests.get(f"https://otx.alienvault.com/api/v1/indicators/file/{file_hash}/analysis", headers=headers)
+    cached_response = cache.get_cache(file_hash)
+    if  cached_response:
+        logging.info(f"if start")
+        response = cached_response
+        logging.info(f"if ends")
+    else:
+        headers = {'X-OTX-API-KEY': OTX_API_KEY}
+        response = requests.get(f"https://otx.alienvault.com/api/v1/indicators/file/{file_hash}/analysis", headers=headers)
+        if response.status_code != 200:
+            logging.error(f"OTX API request failed for hash {file_hash} with status code {response.status_code}")
+            return None
+        response=response.json()
+        cache.set_cache(file_hash,response)
+        
 
-    if response.status_code != 200:
-        logging.error(f"OTX API request failed for hash {file_hash} with status code {response.status_code}")
-        return None
 
     try:
-        data = response.json()
+        data = response
 
         # Ensure 'pulse_info' exists in the response
         pulse_info = data.get("pulse_info", {})
@@ -266,7 +289,7 @@ def check_file_hash_in_db(file_hash):
         return {'status': 'blocked', 'message': 'Blocked file hash (database)'}
 
     # If not found locally, check with AlienVault OTX
-    otx_result = check_otx_for_file_hash(file_hash)
+    otx_result = _for_file_hash(file_hash)
     if otx_result:
         return {'status': 'blocked', 'message': 'Malicious file hash detected in OTX', 'details': otx_result}
 

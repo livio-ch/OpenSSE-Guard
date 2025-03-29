@@ -58,3 +58,5 @@ yarn-error.log*
 .yarn/
 .pnp/
 .pnp.js
+mitm_token.txt
+cache.db
