@@ -82,6 +82,10 @@ function Logs2() {
   };
 
   const applyFilters = (logs) => {
+    if (!filterText.trim()) {
+      return logs; // If filterText is empty, return all logs
+    }
+
     const filterArray = filterText.split(/\s+(AND|OR)\s+/i); // Split by AND/OR (case insensitive)
     let parsedFilterArray = [];
     let currentOperator = 'AND'; // Default operator
@@ -99,13 +103,11 @@ function Logs2() {
       }
     });
 
-    // Apply the filters correctly
     return logs.filter((log) => {
       let result = parsedFilterArray[0]?.currentOperator === 'AND' ? true : false;
 
       parsedFilterArray.forEach(({ column, operator, value, currentOperator }) => {
         const logValue = getValueFromObject(log, column);
-
         if (logValue === undefined) return;
 
         const parsedLogValue = isNaN(logValue) ? logValue : Number(logValue);
@@ -117,7 +119,6 @@ function Logs2() {
         else if (operator === ">") conditionMet = parsedLogValue > parsedFilterValue;
         else if (operator === "<") conditionMet = parsedLogValue < parsedFilterValue;
 
-        // Correct AND/OR logic
         if (currentOperator === "AND") {
           result = result && conditionMet;
         } else if (currentOperator === "OR") {
@@ -128,7 +129,6 @@ function Logs2() {
       return result;
     });
   };
-
 
 
   const handleFilterTextChange = (e) => {
