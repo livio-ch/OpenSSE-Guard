@@ -90,13 +90,13 @@ function Logs2() {
       return logs; // If filterText is empty, return all logs
     }
 
-    const filterArray = filterText.split(/\s+(AND|OR)\s+/i); // Split by AND/OR (case insensitive)
+    const filterArray = filterText.split(/\s+(AND|OR|XOR|NAND)\s+/i); // Split by AND/OR/XOR/NAND (case insensitive)
     let parsedFilterArray = [];
     let currentOperator = 'AND'; // Default operator
 
     // Parse filter text into conditions
     filterArray.forEach((filterTerm) => {
-      if (filterTerm.toUpperCase() === 'AND' || filterTerm.toUpperCase() === 'OR') {
+      if (filterTerm.toUpperCase() === 'AND' || filterTerm.toUpperCase() === 'OR' || filterTerm.toUpperCase() === 'XOR' || filterTerm.toUpperCase() === 'NAND') {
         currentOperator = filterTerm.toUpperCase();
       } else {
         const match = filterTerm.match(/([a-zA-Z0-9_\.]+)\s*(==|!=|>|<)\s*(.*)/);
@@ -133,6 +133,10 @@ function Logs2() {
           result = result && conditionMet;
         } else if (currentOperator === "OR") {
           result = result || conditionMet;
+        } else if (currentOperator === "XOR") {
+          result = (result ? 1 : 0) ^ (conditionMet ? 1 : 0) ? true : false;
+        } else if (currentOperator === "NAND") {
+          result = !(result && conditionMet);
         }
       });
 

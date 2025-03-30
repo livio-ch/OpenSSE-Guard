@@ -5,12 +5,12 @@ const FilterInput = ({ filterText, setFilterText }) => {
 
   // Function to parse the filter text and split by AND/OR
   const parseFilterText = (text) => {
-    const parts = text.split(/\s+(AND|OR)\s+/i);
+    const parts = text.split(/\s+(AND|OR|NAND|XOR)\s+/i);
     let newFilters = [];
     let lastOperator = null;
 
     parts.forEach((part) => {
-      if (part.toUpperCase() === "AND" || part.toUpperCase() === "OR") {
+      if (part.toUpperCase() === "AND" || part.toUpperCase() === "OR"  || part.toUpperCase() === "XOR"  || part.toUpperCase() === "NAND") {
         lastOperator = part.toUpperCase();
       } else {
         newFilters.push({ condition: part, operator: lastOperator });
@@ -70,6 +70,8 @@ const FilterInput = ({ filterText, setFilterText }) => {
               >
                 <option value="AND">AND</option>
                 <option value="OR">OR</option>
+                <option value="NAND">NAND</option>
+                <option value="XOR">XOR</option>
               </select>
 
 
