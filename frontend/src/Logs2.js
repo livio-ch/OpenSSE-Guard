@@ -83,47 +83,53 @@ function Logs2() {
 
   const applyFilters = (logs) => {
     const filterArray = filterText.split(/\s+(AND|OR)\s+/i); // Split by AND/OR (case insensitive)
-    let filteredLogs = [...logs];
-
-    // Parse each term in the filter and apply it
     let parsedFilterArray = [];
+    let currentOperator = 'AND'; // Default operator
 
+    // Parse filter text into conditions
     filterArray.forEach((filterTerm) => {
-      const match = filterTerm.match(/([a-zA-Z0-9_\.]+)\s*(==|!=|>|<)\s*(.*)/); // Match the pattern: column operator value
-      if (match) {
-        const [_, column, operator, value] = match;
-        parsedFilterArray.push({ column: column.toLowerCase(), operator, value }); // Normalize column name to lowercase
+      if (filterTerm.toUpperCase() === 'AND' || filterTerm.toUpperCase() === 'OR') {
+        currentOperator = filterTerm.toUpperCase();
+      } else {
+        const match = filterTerm.match(/([a-zA-Z0-9_\.]+)\s*(==|!=|>|<)\s*(.*)/);
+        if (match) {
+          const [_, column, operator, value] = match;
+          parsedFilterArray.push({ column: column.toLowerCase(), operator, value, currentOperator });
+        }
       }
     });
 
-    // Apply the parsed filters to the logs
-    parsedFilterArray.forEach(({ column, operator, value }) => {
-      filteredLogs = filteredLogs.filter((log) => {
-        const logValue = getValueFromObject(log, column); // Get the value from the log based on the column path
+    // Apply the filters correctly
+    return logs.filter((log) => {
+      let result = parsedFilterArray[0]?.currentOperator === 'AND' ? true : false;
 
-        // If no value found in the log, skip it
-        if (logValue === undefined) return false;
+      parsedFilterArray.forEach(({ column, operator, value, currentOperator }) => {
+        const logValue = getValueFromObject(log, column);
 
-        // Convert both log value and filter value to number if possible for numeric comparison
+        if (logValue === undefined) return;
+
         const parsedLogValue = isNaN(logValue) ? logValue : Number(logValue);
         const parsedFilterValue = isNaN(value) ? value : Number(value);
 
-        // Compare the values based on the operator
-        if (operator === "==") {
-          return parsedLogValue == parsedFilterValue; // Loose comparison to handle type coercion
-        } else if (operator === "!=") {
-          return parsedLogValue != parsedFilterValue;
-        } else if (operator === ">") {
-          return parsedLogValue > parsedFilterValue;
-        } else if (operator === "<") {
-          return parsedLogValue < parsedFilterValue;
-        }
-        return false;
-      });
-    });
+        let conditionMet = false;
+        if (operator === "==") conditionMet = parsedLogValue == parsedFilterValue;
+        else if (operator === "!=") conditionMet = parsedLogValue != parsedFilterValue;
+        else if (operator === ">") conditionMet = parsedLogValue > parsedFilterValue;
+        else if (operator === "<") conditionMet = parsedLogValue < parsedFilterValue;
 
-    return filteredLogs;
+        // Correct AND/OR logic
+        if (currentOperator === "AND") {
+          result = result && conditionMet;
+        } else if (currentOperator === "OR") {
+          result = result || conditionMet;
+        }
+      });
+
+      return result;
+    });
   };
+
+
 
   const handleFilterTextChange = (e) => {
     setFilterText(e.target.value);
