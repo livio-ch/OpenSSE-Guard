@@ -34,7 +34,8 @@ function Logs2() {
             },
           });
 
-          // Handle the API response
+          console.log("API Response:", response.data); // Log the response
+
           const extractedLogs = response.data?.logs?.logs || [];
           if (Array.isArray(extractedLogs)) {
             setLogs(extractedLogs);
@@ -83,6 +84,7 @@ function Logs2() {
     return value;
   };
 
+
   const applyFilters = (logs) => {
     if (!filterText.trim()) {
       return logs; // If filterText is empty, return all logs
@@ -109,8 +111,14 @@ function Logs2() {
       let result = parsedFilterArray[0]?.currentOperator === 'AND' ? true : false;
 
       parsedFilterArray.forEach(({ column, operator, value, currentOperator }) => {
+        // Safely get the value from the log
         const logValue = getValueFromObject(log, column);
-        if (logValue === undefined) return;
+
+        if (logValue === undefined || logValue === null) {
+          // If the field doesn't exist, skip the filter or handle accordingly
+          result = currentOperator === "AND" ? false : result; // If using AND, the filter fails if any field is missing
+          return;
+        }
 
         const parsedLogValue = isNaN(logValue) ? logValue : Number(logValue);
         const parsedFilterValue = isNaN(value) ? value : Number(value);
@@ -134,6 +142,7 @@ function Logs2() {
 
 
   const handleFilterTextChange = (e) => {
+    console.log("Filter Text Before Update:", filterText);  // Log the previous filter text
     setFilterText(e.target.value);
   };
 
@@ -142,6 +151,7 @@ function Logs2() {
   };
 
   const filteredLogs = applyFilters(logs);
+  console.log("Filtered Logs:", filteredLogs);  // Log filtered logs
 
   const handleSort = (column) => {
     const direction = sortConfig.direction === "asc" ? "desc" : "asc"; // Toggle direction
@@ -169,16 +179,16 @@ function Logs2() {
   };
 
   const sortedLogs = sortLogs(filteredLogs);
+  console.log("Sorted Logs:", sortedLogs);  // Log sorted logs
 
   const formatCell = (value) => {
     if (value === null || value === undefined) return "N/A";
 
     // If the value is an object, format it accordingly
     if (typeof value === "object" && value !== null) {
+      console.log("Formatting Object:", value);  // Log the object being formatted
       return Object.entries(value).map(([subKey, subValue]) => {
-        // Truncate the subKey if it's too long
         const truncatedSubKey = subKey.length > 100 ? subKey.substring(0, 100) + "..." : subKey;
-
         if (typeof subValue === "object") {
           return (
             <div key={subKey} title={JSON.stringify(subValue)}>
@@ -187,9 +197,7 @@ function Logs2() {
           );
         }
 
-        // Truncate the subValue if it's a string and too long
         const truncatedSubValue = typeof subValue === "string" && subValue.length > 100 ? subValue.substring(0, 100) + "..." : subValue;
-
         return (
           <div key={subKey} title={subValue}>
             <strong>{truncatedSubKey}:</strong> {truncatedSubValue}
@@ -198,6 +206,7 @@ function Logs2() {
       });
     }
 
+    console.log("Formatting Value:", value);  // Log non-object value being formatted
     return value;
   };
 
@@ -206,15 +215,12 @@ function Logs2() {
 
     // Check if the value is an object
     if (typeof value === 'object' && value !== null) {
-      // If it's an object, recursively go through its keys and add to filter
+      console.log("Double Clicked Object:", value);  // Log the object being double-clicked
       filter = Object.entries(value)
-        .map(([key, subValue]) => {
-          // If the subValue is also an object, handle it recursively
-          return `${column}.${key} == ${subValue}`;
-        })
-        .join(' OR ');  // If you want "OR" between nested keys
+        .map(([key, subValue]) => `${column}.${key} == ${subValue}`)
+        .join(' OR ');
     } else {
-      // Otherwise, just add the column and value for the filter
+      console.log("Double Clicked Value:", value);  // Log the value being double-clicked
       filter = `${column} == ${value}`;
     }
 
