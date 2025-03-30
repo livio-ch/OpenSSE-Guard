@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useAuth0 } from "@auth0/auth0-react";
 
+import FilterInput from "./components/FilterInput";
+
 function Logs2() {
   const { getAccessTokenSilently, isAuthenticated } = useAuth0(); // Get Auth0 token
   const [logs, setLogs] = useState([]);
@@ -252,6 +254,7 @@ function Logs2() {
         >
           Clear Filter
         </button>
+        <FilterInput filterText={filterText} setFilterText={setFilterText} clearFilters={clearFilters} />
       </div>
 
       {/* Loading Spinner */}
