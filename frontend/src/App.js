@@ -2,6 +2,8 @@ import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
 import { useAuth0 } from "@auth0/auth0-react";
 import { useState } from "react";
 import Logs from "./Logs";
+import Logs2 from "./Logs2";
+
 import Policy from "./Policy";
 import "./App.css"; // Import your CSS file here
 
@@ -40,6 +42,7 @@ function App() {
           {isAuthenticated ? (
             <>
               <Link to="/" className="text-lg hover:text-blue-400 transition">Logs</Link>
+              <Link to="/logs2" className="text-lg hover:text-blue-400 transition">Logs2</Link>
               <Link to="/policy" className="text-lg hover:text-blue-400 transition">Policy</Link>
             </>
           ) : null}
@@ -74,6 +77,7 @@ function App() {
           {isAuthenticated && (
             <>
               <Route path="/" element={<Logs />} />
+              <Route path="/logs2" element={<Logs2 />} />
               <Route path="/policy" element={<Policy />} />
             </>
           )}
