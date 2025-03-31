@@ -209,3 +209,35 @@ tr:hover {
 .clear-filters-btn:active {
   background-color: #1a202c; /* Darkest shade on click */
 }
+
+.clear-filter-btn2 {
+  background-color: #e2e8f0; /* Light gray background to match the filter inputs */
+  color: #2d3748; /* Dark text color for visibility */
+  border: 1px solid #e2e8f0; /* Same border style as dropdowns */
+  border-radius: 8px; /* Matching rounded corners */
+  padding: 0.3rem 0.3rem; /* Adjusted padding to match the dropdowns' size */
+  font-size: 0.7rem; /* Font size adjusted to match dropdown text */
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: auto; /* Let the button size automatically adjust */
+  margin: 0.25rem ; /* Small vertical margin to align with dropdowns */
+}
+
+.clear-filter-btn2:hover {
+  background-color: #edf2f7; /* Slightly lighter gray on hover */
+  transform: scale(1.1); /* Slight scaling effect for hover */
+}
+
+.clear-filter-btn2:focus {
+  outline: none; /* Remove outline on focus */
+  box-shadow: 0 0 0 2px rgba(99, 179, 237, 0.6); /* Blue glow on focus */
+}
+
+.clear-filter-btn2:disabled {
+  background-color: #f7fafc; /* Light gray background when disabled */
+  color: #d1d5db; /* Lighter text when disabled */
+  cursor: not-allowed; /* Change cursor to indicate it's disabled */
+}

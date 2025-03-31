@@ -1,5 +1,12 @@
 import { useState, useEffect } from "react";
 
+// Utility function to update filters based on a specific change
+const updateFilter = (filters, index, field, value) => {
+  const updatedFilters = [...filters];
+  updatedFilters[index] = { ...updatedFilters[index], [field]: value };
+  return updatedFilters;
+};
+
 const FilterInput = ({ filterText, setFilterText, fieldOptions }) => {
   const [filters, setFilters] = useState([]);
 
@@ -40,31 +47,24 @@ const FilterInput = ({ filterText, setFilterText, fieldOptions }) => {
     setFilterText(e.target.value);
   };
 
-  const handleOperatorChange = (index, newOperator) => {
-    const updatedFilters = filters.map((filter, i) =>
-      i === index ? { ...filter, operator: newOperator } : filter
-    );
-    updateFilterText(updatedFilters);
-  };
-
-  const handleComparisonChange = (index, newComparison) => {
-    const updatedFilters = filters.map((filter, i) =>
-      i === index ? { ...filter, comparison: newComparison } : filter
-    );
-    updateFilterText(updatedFilters);
-  };
-
   const handleFieldChange = (index, newField) => {
-    const updatedFilters = filters.map((filter, i) =>
-      i === index ? { ...filter, field: newField, value: "" } : filter // Reset value when field changes
-    );
+    const updatedFilters = updateFilter(filters, index, "field", newField);
+    updatedFilters[index].value = ""; // Reset value when field changes
     updateFilterText(updatedFilters);
   };
 
   const handleValueChange = (index, newValue) => {
-    const updatedFilters = filters.map((filter, i) =>
-      i === index ? { ...filter, value: newValue } : filter
-    );
+    const updatedFilters = updateFilter(filters, index, "value", newValue);
+    updateFilterText(updatedFilters);
+  };
+
+  const handleOperatorChange = (index, newOperator) => {
+    const updatedFilters = updateFilter(filters, index, "operator", newOperator);
+    updateFilterText(updatedFilters);
+  };
+
+  const handleComparisonChange = (index, newComparison) => {
+    const updatedFilters = updateFilter(filters, index, "comparison", newComparison);
     updateFilterText(updatedFilters);
   };
 
@@ -143,11 +143,21 @@ const FilterInput = ({ filterText, setFilterText, fieldOptions }) => {
                 <option key={value} value={value}>{value}</option>
               ))}
             </select>
+            <button
+              className="clear-filter-btn2"
+              onClick={() => {
+                const updatedFilters = filters.filter((_, i) => i !== index);
+                updateFilterText(updatedFilters);
+              }}
+              aria-label={`Clear filter ${index}`}
+            >
+              X
+            </button>
           </div>
         ))}
       </div>
       <button onClick={clearFilters} className="clear-filters-btn">
-        Clear Filters
+        Clear All Filters
       </button>
     </div>
   );
