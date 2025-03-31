@@ -80,6 +80,11 @@ const FilterInput = ({ filterText, setFilterText, fieldOptions }) => {
     setFilterText(newText);
   };
 
+  const clearFilters = () => {
+    setFilters([]);
+    setFilterText("");
+  };
+
   return (
     <div className="filter-input-container">
       <input
@@ -88,6 +93,7 @@ const FilterInput = ({ filterText, setFilterText, fieldOptions }) => {
         onChange={handleChange}
         placeholder="Enter filters (e.g., id == 2289 AND status == 'active')"
         className="filter-input"
+        aria-label="Filter input"
       />
       <div className="mt-2 flex flex-wrap items-center gap-x-2">
         {filters.map((filter, index) => (
@@ -97,6 +103,7 @@ const FilterInput = ({ filterText, setFilterText, fieldOptions }) => {
                 value={filter.operator || "AND"}
                 onChange={(e) => handleOperatorChange(index, e.target.value)}
                 className="operator-dropdown"
+                aria-label={`Operator for filter ${index}`}
               >
                 <option value="AND">AND</option>
                 <option value="OR">OR</option>
@@ -108,6 +115,7 @@ const FilterInput = ({ filterText, setFilterText, fieldOptions }) => {
               value={filter.field}
               onChange={(e) => handleFieldChange(index, e.target.value)}
               className="filter-dropdown"
+              aria-label={`Field for filter ${index}`}
             >
               {fieldOptions && Object.keys(fieldOptions).map((field) => (
                 <option key={field} value={field}>{field}</option>
@@ -117,6 +125,7 @@ const FilterInput = ({ filterText, setFilterText, fieldOptions }) => {
               value={filter.comparison}
               onChange={(e) => handleComparisonChange(index, e.target.value)}
               className="filter-dropdown"
+              aria-label={`Comparison for filter ${index}`}
             >
               <option value="==">==</option>
               <option value="!=">!=</option>
@@ -128,6 +137,7 @@ const FilterInput = ({ filterText, setFilterText, fieldOptions }) => {
               onChange={(e) => handleValueChange(index, e.target.value)}
               disabled={!filter.field}
               className="filter-dropdown"
+              aria-label={`Value for filter ${index}`}
             >
               {filter.field && fieldOptions[filter.field]?.map((value) => (
                 <option key={value} value={value}>{value}</option>
@@ -136,9 +146,11 @@ const FilterInput = ({ filterText, setFilterText, fieldOptions }) => {
           </div>
         ))}
       </div>
+      <button onClick={clearFilters} className="mt-2 bg-red-500 text-white px-4 py-2 rounded">
+        Clear Filters
+      </button>
     </div>
   );
-
 };
 
 export default FilterInput;
