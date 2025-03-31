@@ -272,12 +272,6 @@ function Logs2() {
 
       {/* Filter Input */}
       <div className="mb-4">
-        <button
-          onClick={clearFilters}
-          className="mt-2 px-4 py-2 bg-gray-500 rounded ml-2"
-        >
-          Clear Filter
-        </button>
         <FilterInput filterText={filterText} setFilterText={setFilterText} clearFilters={clearFilters} fieldOptions={fieldOptions} />
       </div>
 
