@@ -244,23 +244,10 @@ function Logs2() {
 
       {/* Filter Input */}
       <div className="mb-4">
-        <input
-          type="text"
-          value={filterText}
-          onChange={handleFilterTextChange}
-          style={{ width: "600px" }}  // Increased width for better visibility
-          className="p-2 border rounded"
-          placeholder="Enter filter (e.g., category == error OR level > 3)"
-        />
-        <button
-          onClick={() => setFilterText(filterText)}
-          className="mt-2 px-4 py-2 bg-blue-500 text-white rounded"
-        >
-          Filter
-        </button>
+
         <button
           onClick={clearFilters}
-          className="mt-2 px-4 py-2 bg-gray-500 text-white rounded ml-2"
+          className="mt-2 px-4 py-2 bg-gray-500 rounded ml-2"
         >
           Clear Filter
         </button>
