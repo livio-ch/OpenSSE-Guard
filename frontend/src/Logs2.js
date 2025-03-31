@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from "react";
+import { useCallback } from "react"; // Import useCallback
 import axios from "axios";
-import { useAuth0 } from "@auth0/auth0-react";
-
+import { useAuth } from "./useAuth";
 import FilterInput from "./components/FilterInput";
 
 function Logs2() {
-  const { getAccessTokenSilently, isAuthenticated } = useAuth0(); // Get Auth0 token
+  const { fetchToken, isAuthenticated } = useAuth();  // Use the custom hook
   const [logs, setLogs] = useState([]);
   const [columns, setColumns] = useState([]);
   const [filters, setFilters] = useState({});
@@ -15,47 +15,40 @@ function Logs2() {
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" }); // Sorting state
 
   useEffect(() => {
-    if (isAuthenticated) {
-      // Function to fetch logs from the API
-      const fetchLogs = async () => {
-        setLoading(true); // Set loading to true when fetching data
-        try {
-          // Get the token from Auth0
-          const token = await getAccessTokenSilently();
-          if (!token) {
-            setError("No token available");
-            return;
-          }
+  if (!isAuthenticated) return;
 
-          // Send the token with the request
-          const response = await axios.get("http://localhost:5000/logs", {
-            headers: {
-              'Authorization': `Bearer ${token}`, // Attach token here
-            },
-          });
+  const fetchLogs = async () => {
+    setLoading(true);
+    try {
+      const token = await fetchToken();
+      if (!token) {
+        setError("No token available");
+        return;
+      }
 
-          console.log("API Response:", response.data); // Log the response
+      const response = await axios.get("http://localhost:5000/logs", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-          const extractedLogs = response.data?.logs?.logs || [];
-          if (Array.isArray(extractedLogs)) {
-            setLogs(extractedLogs);
-            if (extractedLogs.length > 0) {
-              const firstLog = extractedLogs[0];
-              setColumns(Object.keys(firstLog)); // Dynamically set columns
-              setFilters(Object.fromEntries(Object.keys(firstLog).map(key => [key, ""])));
-            }
-          }
-        } catch (error) {
-          setError("Error fetching logs: " + error.message);
-          console.error("Error fetching logs:", error);
-        } finally {
-          setLoading(false); // Set loading to false after the data is fetched
+      const extractedLogs = response.data?.logs?.logs || [];
+      if (Array.isArray(extractedLogs)) {
+        setLogs(extractedLogs);
+        if (extractedLogs.length > 0) {
+          const firstLog = extractedLogs[0];
+          setColumns(Object.keys(firstLog));
+          setFilters(Object.fromEntries(Object.keys(firstLog).map((key) => [key, ""])));
         }
-      };
-
-      fetchLogs();
+      }
+    } catch (error) {
+      setError("Error fetching logs: " + error.message);
+      console.error("Error fetching logs:", error);
+    } finally {
+      setLoading(false);
     }
-  }, [getAccessTokenSilently, isAuthenticated]);
+  };
+
+  fetchLogs();
+}, [isAuthenticated]); // Only depends on isAuthenticated
 
   const checkIfValueMatchesFilter = (value, filterValue) => {
     if (value === null || value === undefined) return false;
