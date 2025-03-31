@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 
-const FilterInput = ({ filterText, setFilterText }) => {
+const FilterInput = ({ filterText, setFilterText, fieldOptions }) => {
   const [filters, setFilters] = useState([]);
 
   const parseFilterText = (text) => {
@@ -50,6 +50,20 @@ const FilterInput = ({ filterText, setFilterText }) => {
   const handleComparisonChange = (index, newComparison) => {
     const updatedFilters = filters.map((filter, i) =>
       i === index ? { ...filter, comparison: newComparison } : filter
+    );
+    updateFilterText(updatedFilters);
+  };
+
+  const handleFieldChange = (index, newField) => {
+    const updatedFilters = filters.map((filter, i) =>
+      i === index ? { ...filter, field: newField, value: "" } : filter // Reset value when field changes
+    );
+    updateFilterText(updatedFilters);
+  };
+
+  const handleValueChange = (index, newValue) => {
+    const updatedFilters = filters.map((filter, i) =>
+      i === index ? { ...filter, value: newValue } : filter
     );
     updateFilterText(updatedFilters);
   };
@@ -107,7 +121,15 @@ const FilterInput = ({ filterText, setFilterText }) => {
                 <option value="XOR">XOR</option>
               </select>
             )}
-            <span className="border p-2 min-w-[150px] w-auto">{filter.field}</span>
+            <select
+              value={filter.field}
+              onChange={(e) => handleFieldChange(index, e.target.value)}
+              className="bg-white text-gray-700"
+            >
+              {fieldOptions && Object.keys(fieldOptions).map((field) => (
+                <option key={field} value={field}>{field}</option>
+              ))}
+            </select>
             <select
               value={filter.comparison}
               onChange={(e) => handleComparisonChange(index, e.target.value)}
@@ -134,7 +156,15 @@ const FilterInput = ({ filterText, setFilterText }) => {
               <option value=">">{">"}</option>
               <option value="<">{"<"}</option>
             </select>
-            <span className="border p-2 min-w-[150px] w-auto">{filter.value}</span>
+            <select
+              value={filter.value}
+              onChange={(e) => handleValueChange(index, e.target.value)}
+              disabled={!filter.field}
+            >
+              {filter.field && fieldOptions[filter.field]?.map((value) => (
+                <option key={value} value={value}>{value}</option>
+              ))}
+            </select>
           </div>
         ))}
       </div>

@@ -84,7 +84,6 @@ function Logs2() {
     return value;
   };
 
-
   const applyFilters = (logs) => {
     if (!filterText.trim()) {
       return logs; // If filterText is empty, return all logs
@@ -144,7 +143,6 @@ function Logs2() {
     });
   };
 
-
   const handleFilterTextChange = (e) => {
     console.log("Filter Text Before Update:", filterText);  // Log the previous filter text
     setFilterText(e.target.value);
@@ -184,6 +182,36 @@ function Logs2() {
 
   const sortedLogs = sortLogs(filteredLogs);
   console.log("Sorted Logs:", sortedLogs);  // Log sorted logs
+
+  const extractFieldOptions = (logs) => {
+    const fieldOptions = {};
+
+    const extractFieldsRecursively = (obj, prefix = '') => {
+      Object.keys(obj).forEach((key) => {
+        const fullPath = prefix ? `${prefix}.${key}` : key;
+        const value = obj[key];
+
+        // If the value is an object, recurse into it
+        if (typeof value === 'object' && value !== null) {
+          extractFieldsRecursively(value, fullPath);
+        } else {
+          if (!fieldOptions[fullPath]) {
+            fieldOptions[fullPath] = new Set();
+          }
+          fieldOptions[fullPath].add(value); // Collect unique values
+        }
+      });
+    };
+
+    logs.forEach((log) => {
+      extractFieldsRecursively(log);
+    });
+
+    // Convert Sets to Arrays
+    return Object.fromEntries(Object.entries(fieldOptions).map(([key, value]) => [key, [...value]]));
+  };
+
+  const fieldOptions = extractFieldOptions(logs);
 
   const formatCell = (value) => {
     if (value === null || value === undefined) return "N/A";
@@ -244,14 +272,13 @@ function Logs2() {
 
       {/* Filter Input */}
       <div className="mb-4">
-
         <button
           onClick={clearFilters}
           className="mt-2 px-4 py-2 bg-gray-500 rounded ml-2"
         >
           Clear Filter
         </button>
-        <FilterInput filterText={filterText} setFilterText={setFilterText} clearFilters={clearFilters} />
+        <FilterInput filterText={filterText} setFilterText={setFilterText} clearFilters={clearFilters} fieldOptions={fieldOptions} />
       </div>
 
       {/* Loading Spinner */}
