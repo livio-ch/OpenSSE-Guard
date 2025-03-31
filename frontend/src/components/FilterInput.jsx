@@ -43,28 +43,9 @@ const FilterInput = ({ filterText, setFilterText, fieldOptions }) => {
     parseFilterText(filterText);
   }, [filterText]);
 
-  const handleChange = (e) => {
-    setFilterText(e.target.value);
-  };
-
-  const handleFieldChange = (index, newField) => {
-    const updatedFilters = updateFilter(filters, index, "field", newField);
-    updatedFilters[index].value = ""; // Reset value when field changes
-    updateFilterText(updatedFilters);
-  };
-
-  const handleValueChange = (index, newValue) => {
-    const updatedFilters = updateFilter(filters, index, "value", newValue);
-    updateFilterText(updatedFilters);
-  };
-
-  const handleOperatorChange = (index, newOperator) => {
-    const updatedFilters = updateFilter(filters, index, "operator", newOperator);
-    updateFilterText(updatedFilters);
-  };
-
-  const handleComparisonChange = (index, newComparison) => {
-    const updatedFilters = updateFilter(filters, index, "comparison", newComparison);
+  // Generic function to handle filter updates
+  const handleFilterChange = (index, field, value) => {
+    const updatedFilters = updateFilter(filters, index, field, value);
     updateFilterText(updatedFilters);
   };
 
@@ -90,7 +71,7 @@ const FilterInput = ({ filterText, setFilterText, fieldOptions }) => {
       <input
         type="text"
         value={filterText}
-        onChange={handleChange}
+        onChange={(e) => setFilterText(e.target.value)}
         placeholder="Enter filters (e.g., id == 2289 AND status == 'active')"
         className="filter-input"
         aria-label="Filter input"
@@ -101,7 +82,7 @@ const FilterInput = ({ filterText, setFilterText, fieldOptions }) => {
             {index > 0 && (
               <select
                 value={filter.operator || "AND"}
-                onChange={(e) => handleOperatorChange(index, e.target.value)}
+                onChange={(e) => handleFilterChange(index, "operator", e.target.value)}
                 className="operator-dropdown"
                 aria-label={`Operator for filter ${index}`}
               >
@@ -113,7 +94,7 @@ const FilterInput = ({ filterText, setFilterText, fieldOptions }) => {
             )}
             <select
               value={filter.field}
-              onChange={(e) => handleFieldChange(index, e.target.value)}
+              onChange={(e) => handleFilterChange(index, "field", e.target.value)}
               className="filter-dropdown"
               aria-label={`Field for filter ${index}`}
             >
@@ -123,7 +104,7 @@ const FilterInput = ({ filterText, setFilterText, fieldOptions }) => {
             </select>
             <select
               value={filter.comparison}
-              onChange={(e) => handleComparisonChange(index, e.target.value)}
+              onChange={(e) => handleFilterChange(index, "comparison", e.target.value)}
               className="filter-dropdown"
               aria-label={`Comparison for filter ${index}`}
             >
@@ -134,7 +115,7 @@ const FilterInput = ({ filterText, setFilterText, fieldOptions }) => {
             </select>
             <select
               value={filter.value}
-              onChange={(e) => handleValueChange(index, e.target.value)}
+              onChange={(e) => handleFilterChange(index, "value", e.target.value)}
               disabled={!filter.field}
               className="filter-dropdown"
               aria-label={`Value for filter ${index}`}
