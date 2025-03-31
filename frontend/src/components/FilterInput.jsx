@@ -81,39 +81,22 @@ const FilterInput = ({ filterText, setFilterText, fieldOptions }) => {
   };
 
   return (
-    <div className="p-4 border rounded w-full">
+    <div className="filter-input-container">
       <input
         type="text"
         value={filterText}
         onChange={handleChange}
         placeholder="Enter filters (e.g., id == 2289 AND status == 'active')"
-        className="border p-2 w-full min-w-[800px] max-w-[1000px]"
-        style={{ width: "100%" }}
+        className="filter-input"
       />
       <div className="mt-2 flex flex-wrap items-center gap-x-2">
         {filters.map((filter, index) => (
-          <div key={index} className="flex items-center space-x-2">
+          <div key={index} className="filter-row">
             {index > 0 && (
               <select
                 value={filter.operator || "AND"}
                 onChange={(e) => handleOperatorChange(index, e.target.value)}
-                className="bg-white text-gray-700"
-                style={{
-                  appearance: "none",
-                  backgroundColor: "transparent",
-                  padding: "0 8px", // Add space on left and right
-                  width: "auto",
-                  minWidth: "fit-content",
-                  border: "none",
-                  fontSize: "inherit",
-                  fontFamily: "inherit",
-                  fontWeight: "inherit",
-                  color: "inherit",
-                  textAlign: "center",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
+                className="operator-dropdown"
               >
                 <option value="AND">AND</option>
                 <option value="OR">OR</option>
@@ -124,7 +107,7 @@ const FilterInput = ({ filterText, setFilterText, fieldOptions }) => {
             <select
               value={filter.field}
               onChange={(e) => handleFieldChange(index, e.target.value)}
-              className="bg-white text-gray-700"
+              className="filter-dropdown"
             >
               {fieldOptions && Object.keys(fieldOptions).map((field) => (
                 <option key={field} value={field}>{field}</option>
@@ -133,23 +116,7 @@ const FilterInput = ({ filterText, setFilterText, fieldOptions }) => {
             <select
               value={filter.comparison}
               onChange={(e) => handleComparisonChange(index, e.target.value)}
-              className="bg-white text-gray-700"
-              style={{
-                appearance: "none",
-                backgroundColor: "transparent",
-                padding: "0 8px", // Add space on left and right
-                width: "auto",
-                minWidth: "fit-content",
-                border: "none",
-                fontSize: "inherit",
-                fontFamily: "inherit",
-                fontWeight: "inherit",
-                color: "inherit",
-                textAlign: "center",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
+              className="filter-dropdown"
             >
               <option value="==">==</option>
               <option value="!=">!=</option>
@@ -160,6 +127,7 @@ const FilterInput = ({ filterText, setFilterText, fieldOptions }) => {
               value={filter.value}
               onChange={(e) => handleValueChange(index, e.target.value)}
               disabled={!filter.field}
+              className="filter-dropdown"
             >
               {filter.field && fieldOptions[filter.field]?.map((value) => (
                 <option key={value} value={value}>{value}</option>
@@ -170,6 +138,7 @@ const FilterInput = ({ filterText, setFilterText, fieldOptions }) => {
       </div>
     </div>
   );
+
 };
 
 export default FilterInput;

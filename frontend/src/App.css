@@ -80,10 +80,76 @@ nav a:hover {
 
 .flex {
   display: flex;
+  flex-wrap: wrap;
 }
 
 .justify-center {
   justify-content: center;
+}
+
+/* Filter Input Container */
+.filter-input-container {
+  padding: 1rem;
+  border-radius: 8px;
+  background-color: #f7fafc; /* Light background for input container */
+  border: 1px solid #e2e8f0;
+}
+
+.filter-input {
+  border: 1px solid #e2e8f0;
+  padding: 0.5rem;
+  width: 100%;
+  min-width: 800px;
+  max-width: 1000px;
+  font-size: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+/* Hide Default Dropdown Arrow */
+.filter-dropdown,
+.operator-dropdown {
+  background-color: #fff;
+  border: 1px solid #e2e8f0;
+  padding: 0.3rem;
+  border-radius: 8px;
+  min-width: 0px; /* Set a minimum width */
+  max-width: 200px; /* Set a maximum width */
+  font-size: 0.7rem;
+  color: #2d3748;
+  margin: 0.5rem 0;
+  width: auto; /* Allow it to shrink/grow depending on content */
+  -webkit-appearance: none;  /* Remove default styling in Safari */
+  -moz-appearance: none;     /* Remove default styling in Firefox */
+  appearance: none;          /* Remove default styling in modern browsers */
+}
+
+.filter-dropdown:disabled,
+.operator-dropdown:disabled {
+  background-color: #f7fafc; /* Light background when disabled */
+}
+
+/* Add custom arrow icon using CSS */
+.filter-dropdown::after,
+.operator-dropdown::after {
+  content: '\2193'; /* Unicode for down arrow */
+  font-size: 1.2rem;
+  color: #2d3748;
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.filter-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+   /* Allow wrapping of filters if there are too many */
+}
+
+.filter-row select {
+  width: auto; /* Adjust width automatically */
 }
 
 /* Table Styling */
