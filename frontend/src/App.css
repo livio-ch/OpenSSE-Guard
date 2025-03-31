@@ -182,3 +182,30 @@ tr:nth-child(odd) {
 tr:hover {
   background-color: #e2e8f0; /* Light blue-gray when hovering over a row */
 }
+
+
+/* Clear Filters Button */
+.clear-filters-btn {
+  background-color: #2d3748; /* Dark background to match the rest of the UI */
+  color: white;
+  padding: 0.5rem 1.25rem;
+  font-size: 1rem;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.3s, transform 0.2s ease;
+}
+
+.clear-filters-btn:hover {
+  background-color: #4a5568; /* Darker shade of gray on hover */
+  transform: scale(1.05); /* Slightly enlarge on hover */
+}
+
+.clear-filters-btn:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px #63b3ed; /* Blue outline on focus */
+}
+
+.clear-filters-btn:active {
+  background-color: #1a202c; /* Darkest shade on click */
+}
