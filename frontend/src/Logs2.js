@@ -2,16 +2,13 @@ import React, { useState, useMemo, useCallback } from "react";
 import FilterInput from "./components/FilterInput";
 import LogsTable from "./LogsTable";
 import { useAuth } from "./useAuth";
-import { useFetchData } from "./useFetchData";
+import { useLogs } from "./useLogs";
 import { getValueFromObject, applyFilters, sortLogs, extractFieldOptions } from "./logUtils";
 
 function Logs2() {
   const { fetchToken, isAuthenticated } = useAuth();
-  const { data: logs, columns, error, loading } = useFetchData(
-    isAuthenticated,
-    fetchToken,
-    "http://localhost:5000/logs"
-  );
+  const { logs, columns, error, loading } = useLogs(isAuthenticated, fetchToken);
+
   const [filterText, setFilterText] = useState("");
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
 

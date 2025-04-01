@@ -7,31 +7,33 @@ import { getValueFromObject, applyFilters, sortLogs, extractFieldOptions } from 
 
 function Cache() {
   const { fetchToken, isAuthenticated } = useAuth();
+
+  // Use useFetchData hook to fetch logs data
   const { data: logs, columns, error, loading } = useFetchData(
     isAuthenticated,
     fetchToken,
-    "http://localhost:5000/logs"
+    "http://localhost:5000/cache" // The URL for logs
   );
 
   const [filterText, setFilterText] = useState("");
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
 
-  // Compute filtered logs based on the filterText.
+  // Compute filtered logs based on the filterText
   const filteredLogs = useMemo(
     () => applyFilters(logs, filterText, getValueFromObject),
     [logs, filterText]
   );
 
-  // Compute sorted logs based on the sort configuration.
+  // Compute sorted logs based on the sort configuration
   const sortedLogs = useMemo(
     () => sortLogs(filteredLogs, sortConfig, getValueFromObject),
     [filteredLogs, sortConfig]
   );
 
-  // Compute field options for the FilterInput component.
+  // Compute field options for the FilterInput component
   const fieldOptions = useMemo(() => extractFieldOptions(logs), [logs]);
 
-  // Handlers for filter input changes.
+  // Handlers for filter input changes
   const handleFilterTextChange = useCallback((e) => {
     setFilterText(e.target.value);
   }, []);
@@ -40,7 +42,7 @@ function Cache() {
     setFilterText("");
   }, []);
 
-  // Handler to update the sort configuration when a column header is clicked.
+  // Handler to update the sort configuration when a column header is clicked
   const handleSort = useCallback((column) => {
     setSortConfig((prev) => ({
       key: column,
@@ -48,7 +50,7 @@ function Cache() {
     }));
   }, []);
 
-  // Update filterText based on double-clicked cell value.
+  // Update filterText based on double-clicked cell value
   const handleCellDoubleClick = useCallback((column, value) => {
     let filter = "";
     if (typeof value === "object" && value !== null) {
@@ -61,7 +63,7 @@ function Cache() {
     setFilterText((prev) => (prev.trim() ? `${prev} AND ${filter}` : filter));
   }, []);
 
-  // Format a cell based on its value.
+  // Format a cell based on its value
   const formatCell = useCallback((value) => {
     if (value === null || value === undefined) return "N/A";
     if (typeof value === "object" && value !== null) {
@@ -90,7 +92,7 @@ function Cache() {
 
   return (
     <div className="p-4">
-      <h2 className="text-xl font-bold mb-4">Logs</h2>
+      <h2 className="text-xl font-bold mb-4">API Cache</h2>
 
       {/* Filter Input */}
       <div className="mb-4">
@@ -108,7 +110,7 @@ function Cache() {
       {error && <p className="text-red-500">{error}</p>}
 
       {logs.length === 0 && !loading ? (
-        <p className="text-gray-500 mt-4">No logs available.</p>
+        <p className="text-gray-500 mt-4">No cache available.</p>
       ) : (
         <LogsTable
           columns={columns}

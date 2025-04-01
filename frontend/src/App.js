@@ -80,6 +80,7 @@ function App() {
             <>
               <Route path="/" element={<Logs />} />
               <Route path="/logs2" element={<Logs2 />} />
+              <Route path="/cache" element={<Cache />} />
               <Route path="/policy" element={<Policy />} />
             </>
           )}

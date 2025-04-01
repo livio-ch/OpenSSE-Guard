@@ -410,8 +410,6 @@ def check_mime_type():
 @require_auth(["admin"])
 @require_roles(["admin"])
 def get_logs():
-
-
     try:
         # Get all logs from the database using LogDB class
         logs = log_db.get_all_logs()  # Make sure to implement this method in your log_db.py

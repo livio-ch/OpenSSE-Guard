@@ -73,25 +73,43 @@ def get_cache(key):
         return None
 
 
+import sqlite3
+import json
+import logging
+
 def get_all_cache():
     """Retrieve all cache entries."""
     try:
-        conn = sqlite3.connect(DB_PATH)
-        c = conn.cursor()
-        c.execute("SELECT key, response, timestamp FROM cache")
-        rows = c.fetchall()
-        conn.close()
+        with sqlite3.connect(DB_PATH) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT key, response, timestamp FROM cache")
+            rows = cursor.fetchall()
+            logging.info(f"Retrieved {len(rows)} cache entries from the database")
 
-        # Convert rows into a list of dictionaries
-        all_cache = []
-        for row in rows:
-            key, data, timestamp = row
-            # Check if the data is already a dictionary (not a string)
-            if isinstance(data, dict):
-                all_cache.append({key: data})
-            else:
-                all_cache.append({key: json.loads(data)})
-        return all_cache
+            # Convert rows into a more readable format (a list of dictionaries)
+            cache_entries = []
+            for row in rows:
+                key, data, timestamp = row
+                cache_entry = {
+                    'key': key,
+                    'response': data,
+                    'timestamp': timestamp
+                }
+
+                # Deserialize 'response' if it's in JSON format
+                if cache_entry['response']:
+                    try:
+                        cache_entry['response'] = json.loads(cache_entry['response'])
+                    except json.JSONDecodeError as e:
+                        logging.warning(f"Failed to decode 'response' field as JSON: {e}")
+                        # If we can't decode it, leave the response as is
+
+                cache_entries.append(cache_entry)
+
+            return {'cache': cache_entries, 'status': 'success'}
+    except sqlite3.Error as e:
+        logging.error(f"SQLite error retrieving cache entries: {e}")
+        return {'cache': [], 'status': 'error'}
     except Exception as e:
-        logging.error(f"Error retrieving all cache entries: {e}")
-        return []
+        logging.error(f"Unexpected error: {e}")
+        return {'cache': [], 'status': 'error'}
