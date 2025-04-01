@@ -71,3 +71,27 @@ def get_cache(key):
     except Exception as e:
         logging.error(f"Error retrieving from cache: {e}")
         return None
+
+
+def get_all_cache():
+    """Retrieve all cache entries."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        c.execute("SELECT key, response, timestamp FROM cache")
+        rows = c.fetchall()
+        conn.close()
+
+        # Convert rows into a list of dictionaries
+        all_cache = []
+        for row in rows:
+            key, data, timestamp = row
+            # Check if the data is already a dictionary (not a string)
+            if isinstance(data, dict):
+                all_cache.append({key: data})
+            else:
+                all_cache.append({key: json.loads(data)})
+        return all_cache
+    except Exception as e:
+        logging.error(f"Error retrieving all cache entries: {e}")
+        return []

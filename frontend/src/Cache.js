@@ -5,13 +5,14 @@ import { useAuth } from "./useAuth";
 import { useFetchData } from "./useFetchData";
 import { getValueFromObject, applyFilters, sortLogs, extractFieldOptions } from "./logUtils";
 
-function Logs2() {
+function Cache() {
   const { fetchToken, isAuthenticated } = useAuth();
   const { data: logs, columns, error, loading } = useFetchData(
     isAuthenticated,
     fetchToken,
     "http://localhost:5000/logs"
   );
+
   const [filterText, setFilterText] = useState("");
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
 
@@ -122,4 +123,4 @@ function Logs2() {
   );
 }
 
-export default Logs2;
+export default Cache;

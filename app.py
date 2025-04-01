@@ -257,7 +257,7 @@ def _for_file_hash(file_hash):
             return None
         response=response.json()
         cache.set_cache(file_hash,response)
-        
+
 
 
     try:
@@ -428,6 +428,21 @@ def get_logs():
         logging.error(f"Error fetching logs: {str(e)}")
         return jsonify({'status': 'error', 'message': 'Failed to fetch logs'}), 500
 
+@app.route('/cache', methods=['GET'])
+@require_auth(["admin"])
+@require_roles(["admin"])
+def get_cache():
+    try:
+        # Assumes your cache module has a get_all_cache() function
+        cached_items = cache.get_all_cache()
+        if not cached_items:
+            return jsonify({'status': 'error', 'message': 'No cache found'}), 404
+
+        return jsonify({'status': 'success', 'cache': cached_items}), 200
+
+    except Exception as e:
+        logging.error(f"Error fetching cache: {str(e)}")
+        return jsonify({'status': 'error', 'message': 'Failed to fetch cache'}), 500
 
 
 def fetch_data_from_table(table_name, columns):

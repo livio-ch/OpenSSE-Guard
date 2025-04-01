@@ -4,6 +4,7 @@ import { useState } from "react";
 import Logs from "./Logs";
 import Logs2 from "./Logs2";
 
+import Cache from "./Cache";
 import Policy from "./Policy";
 import "./App.css"; // Import your CSS file here
 
@@ -43,6 +44,7 @@ function App() {
             <>
               <Link to="/" className="text-lg hover:text-blue-400 transition">Logs</Link>
               <Link to="/logs2" className="text-lg hover:text-blue-400 transition">Logs2</Link>
+              <Link to="/cache" className="text-lg hover:text-blue-400 transition">Cache</Link>
               <Link to="/policy" className="text-lg hover:text-blue-400 transition">Policy</Link>
             </>
           ) : null}
