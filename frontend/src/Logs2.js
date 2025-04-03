@@ -2,12 +2,16 @@ import React, { useState, useMemo, useCallback } from "react";
 import FilterInput from "./components/FilterInput";
 import LogsTable from "./LogsTable";
 import { useAuth } from "./useAuth";
-import { useLogs } from "./useLogs";
+import { useFetchData } from "./useFetchData";
 import { getValueFromObject, applyFilters, sortLogs, extractFieldOptions } from "./logUtils";
 
 function Logs2() {
   const { fetchToken, isAuthenticated } = useAuth();
-  const { logs, columns, error, loading } = useLogs(isAuthenticated, fetchToken);
+  const { data: logs, columns, error, loading } = useFetchData(
+    isAuthenticated,
+    fetchToken,
+    "http://localhost:5000/logs" // The URL for logs
+  );
 
   const [filterText, setFilterText] = useState("");
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
@@ -50,7 +54,7 @@ function Logs2() {
     if (typeof value === "object" && value !== null) {
       filter = Object.entries(value)
         .map(([key, subValue]) => `${column}.${key} == ${subValue}`)
-        .join(" OR ");
+        .join(" AND ");
     } else {
       filter = `${column} == ${value}`;
     }

@@ -56,7 +56,7 @@ function Cache() {
     if (typeof value === "object" && value !== null) {
       filter = Object.entries(value)
         .map(([key, subValue]) => `${column}.${key} == ${subValue}`)
-        .join(" OR ");
+        .join(" AND ");
     } else {
       filter = `${column} == ${value}`;
     }
@@ -66,29 +66,61 @@ function Cache() {
   // Format a cell based on its value
   const formatCell = useCallback((value) => {
     if (value === null || value === undefined) return "N/A";
-    if (typeof value === "object" && value !== null) {
-      return Object.entries(value).map(([subKey, subValue]) => {
-        const truncatedSubKey = subKey.length > 100 ? subKey.substring(0, 100) + "..." : subKey;
-        if (typeof subValue === "object") {
-          return (
-            <div key={subKey} title={JSON.stringify(subValue)}>
-              {truncatedSubKey}: [object]
-            </div>
-          );
-        }
-        const truncatedSubValue =
-          typeof subValue === "string" && subValue.length > 100
-            ? subValue.substring(0, 100) + "..."
-            : subValue;
-        return (
-          <div key={subKey} title={subValue}>
-            <strong>{truncatedSubKey}:</strong> {truncatedSubValue}
-          </div>
-        );
-      });
+
+    if (typeof value === "object") {
+      return <NestedObjectRenderer objectData={value} />;
     }
+
     return value;
   }, []);
+
+  const NestedObjectRenderer = ({ objectData }) => {
+    const [expandedKeys, setExpandedKeys] = useState({});
+
+    const toggleExpand = (key) => {
+      setExpandedKeys((prev) => ({
+        ...prev,
+        [key]: !prev[key],
+      }));
+    };
+
+    return Object.entries(objectData).map(([subKey, subValue]) => {
+      const truncatedSubKey = subKey.length > 100 ? subKey.substring(0, 100) + "..." : subKey;
+
+      if (typeof subValue === "object") {
+        return (
+          <div key={subKey} style={{ marginLeft: "10px" }}>
+            <span
+              onClick={() => toggleExpand(subKey)}
+              style={{ cursor: "pointer", color: "blue", textDecoration: "underline" }}
+              title={JSON.stringify(subValue)}
+            >
+              {truncatedSubKey}: {expandedKeys[subKey] ? "[collapse]" : "[expand]"}
+            </span>
+            {expandedKeys[subKey] && (
+              <div style={{ marginLeft: "10px", borderLeft: "1px solid gray", paddingLeft: "5px" }}>
+                <NestedObjectRenderer objectData={subValue} />
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      const truncatedSubValue =
+        typeof subValue === "string" && subValue.length > 100
+          ? subValue.substring(0, 100) + "..."
+          : subValue;
+
+      return (
+        <div key={subKey} style={{ marginLeft: "10px" }} title={subValue}>
+          <strong>{truncatedSubKey}:</strong> {truncatedSubValue}
+        </div>
+      );
+    });
+  };
+
+
+
 
   return (
     <div className="p-4">
