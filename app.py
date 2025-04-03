@@ -56,6 +56,7 @@ DB_PATH = "url_filter.db"  # Path to SQLite database
 
 OTX_API_KEY = os.getenv('OTX_API_KEY')  # Retrieve the API key from the .env file
 OTX_API_URL = 'https://otx.alienvault.com/api/v1/indicators/domain/{}/general'  # OTX API URL for domain check
+OTX_API_URL_HASH = 'https://otx.alienvault.com/api/v1/indicators/file/{}/analysis'
 log_db = LogDB()  # Create an instance of the LogDB class for logging
 
 
@@ -139,8 +140,8 @@ def get_block_status(url):
             return {'status': 'blocked', 'message': message}
 
     # Check OTX for IOC (Indicator of Compromise)
-    ioc_status = _for_ioc(domain)
-    logging.info(f"Domain {domain} isioc status {ioc_status}.")
+    ioc_status = _for_ioc(hostname)
+    logging.info(f"Domain {hostname} isioc status {ioc_status}.")
     if ioc_status and ioc_status.get('verdict') != 'Whitelisted':
         # If it's an IOC and not whitelisted, block the request
         return {'status': 'blocked', 'message': 'Domain is an IOC (Indicator of Compromise)'}
@@ -150,7 +151,8 @@ def get_block_status(url):
 
 def _for_ioc(domain):
     """Check the domain against OTX and extract Facts & Verdict."""
-    cached_response = cache.get_cache(domain)
+    myurl=OTX_API_URL.format(domain)
+    cached_response = cache.get_cache(myurl)
     logging.info(f"GOT cached response: {cached_response}")
     if  cached_response:
         logging.info(f"if start")
@@ -158,12 +160,12 @@ def _for_ioc(domain):
         logging.info(f"if ends")
     else:
         headers = {'X-OTX-API-KEY': OTX_API_KEY}
-        response = requests.get(OTX_API_URL.format(domain), headers=headers)
+        response = requests.get(myurl, headers=headers)
         if response.status_code != 200:
             logging.error(f"OTX API call failed for domain {domain} with status code {response.status_code}")
             return None
         response=response.json()
-        cache.set_cache(domain,response)
+        cache.set_cache(myurl,response)
         logging.error(f"SET CACHE DONE")
 
 
@@ -244,19 +246,20 @@ def is_tls_excluded(hostname):
 
 def _for_file_hash(file_hash):
     """Check the file hash against OTX and extract relevant threat information."""
-    cached_response = cache.get_cache(file_hash)
+    myurl=OTX_API_URL_HASH.format(file_hash)
+    cached_response = cache.get_cache(myurl)
     if  cached_response:
         logging.info(f"if start")
         response = cached_response
         logging.info(f"if ends")
     else:
         headers = {'X-OTX-API-KEY': OTX_API_KEY}
-        response = requests.get(f"https://otx.alienvault.com/api/v1/indicators/file/{file_hash}/analysis", headers=headers)
+        response = requests.get(myurl, headers=headers)
         if response.status_code != 200:
             logging.error(f"OTX API request failed for hash {file_hash} with status code {response.status_code}")
             return None
         response=response.json()
-        cache.set_cache(file_hash,response)
+        cache.set_cache(myurl,response)
 
 
 
