@@ -55,8 +55,34 @@ def send_request_to_api(payload,header=None):
         response.raise_for_status()  # Raise exception for HTTP errors
         return response.json()
     except requests.exceptions.RequestException as e:
+        status_code = str(e.response.status_code)
         ctx.log.error(f"Error contacting Flask API: {e}")
-        return {"status": "error"}  # Ensure we always return a dictionary
+        if status_code.startswith("401"):
+            ctx.log.error("Unauthorized access - maybe token expired?")
+
+            # If token expired, delete token file (optional)
+            try:
+                import os
+                os.remove("mitm_token.txt")
+            except Exception as remove_err:
+                ctx.log.error(f"Failed to delete token file: {remove_err}")
+
+            # If we have a flow context, redirect the user
+            if flow:
+                ctx.log.info("Redirecting user to re-auth at http://localhost:3000")
+                flow.response = http.Response.make(
+                    302,
+                    b"",
+                    {"Location": "http://localhost:3000"}
+                )
+
+        return {"status": "error", "details": f"HTTP error {status_code}"}
+
+    except requests.exceptions.RequestException as e:
+        ctx.log.error(f"Error contacting Flask API: {e}")
+        return {"status": "error", "details": "Request failed"}
+
+        
 
 def tls_clienthello(flow):
     """Handles TLS interception logic by checking with Flask API."""

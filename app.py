@@ -623,10 +623,6 @@ def delete_policy():
         return jsonify({'status': 'error', 'message': 'Failed to delete policy entry'}), 500
 
 
-
-
-
-
 @app.before_request
 def start_time():
     request.start_time = time.time()
@@ -644,7 +640,6 @@ def log_response(response):
         response_data = json.dumps(response.get_json(), ensure_ascii=False)
     else:
         response_data = response.get_data(as_text=True)
-# TODO add a ignore for the get all logs (or at least do not put the response data in ...)
     # Log the request and response data
     if hasattr(g, 'sub'):
         myuser = g.sub
@@ -668,7 +663,11 @@ def log_response(response):
 
 @app.errorhandler(Exception)
 def handle_exception(e):
-    logging.error(f"Unexpected error: {str(e)}")
+
+    if str(e).startswith("401"):
+            return jsonify({'status': 'Unauthorized', 'message': '401 Unauthorized'}), 401
+    logging.error(f"Unexpected error: {e}")
+
     return jsonify({'status': 'error', 'message': 'Internal Server Error'}), 500
 
 if __name__ == '__main__':
