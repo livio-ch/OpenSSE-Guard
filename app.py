@@ -19,7 +19,7 @@ from validator import Auth0JWTBearerTokenValidator
 from functools import wraps
 import base64
 from dotenv import load_dotenv  # Import dotenv
-
+from category_check import check_category_action
 import cache  # Import your cache module
 
 # Load environment variables from the .env file
@@ -27,6 +27,7 @@ load_dotenv()
 
 
 require_auth = ResourceProtector()
+
 
 
 auth0_domain = os.getenv("AUTH0_DOMAIN")
@@ -146,6 +147,10 @@ def get_block_status(url):
         # If it's an IOC and not whitelisted, block the request
         return {'status': 'blocked', 'message': 'Domain is an IOC (Indicator of Compromise)'}
 
+    category_status = check_category_action(hostname)
+    if category_status:
+        return category_status
+
     return None  # Not blocked
 
 
@@ -215,9 +220,6 @@ def _for_ioc(domain):
         'current_nameservers': current_nameservers,
         'ssl_certificates': ssl_certificates
     }
-
-
-
 
 
 
