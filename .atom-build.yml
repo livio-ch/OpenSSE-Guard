@@ -1,0 +1,9 @@
+cmd: powershell
+args:
+  - -Command
+  - |
+    Start-Process powershell  -ArgumentList 'python app.py'
+    Start-Process powershell  -ArgumentList 'mitmdumps -s api_call_intercept.py'
+    Start-Process powershell  -ArgumentList 'cd frontend; npm start'
+name: "Start Backend + Frontend"
+sh: false
