@@ -3,6 +3,7 @@ import logging
 import cache
 import os
 from .threat_api import ThreatIntelAPI
+import json
 
 class OTXAPI(ThreatIntelAPI):
     def __init__(self):
@@ -21,7 +22,7 @@ class OTXAPI(ThreatIntelAPI):
                 return None
             response = res.json()
             cache.set_cache(myurl, response)
-            logging.error(f"SET CACHE DONE")
+            logging.debug("OTX domain response cached")
         logging.info(f"response data json transform")
         data = response
 
@@ -86,7 +87,6 @@ class OTXAPI(ThreatIntelAPI):
             if not pulse_info or pulse_info.get("count", 0) == 0:
                 logging.info(f"Hash {file_hash} is not found in OTX (no pulses).")
                 return None  # No threats found
-                # Extract threat details
             return {
                 "verdict": "Malicious",
                 "pulses": pulse_info.get("pulses", [])

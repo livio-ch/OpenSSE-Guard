@@ -4,7 +4,6 @@ from flask import Flask, request, jsonify, g
 import tldextract
 import re
 from urllib.parse import urlparse
-import requests  # To make API calls to OTX
 import json  # Ensure you import json at the top of your script
 import os
 import time
@@ -18,20 +17,19 @@ from authlib.integrations.flask_oauth2 import ResourceProtector
 from validator import Auth0JWTBearerTokenValidator
 from functools import wraps
 import base64
-from dotenv import load_dotenv  # Import dotenv
 from category_check import check_category_action
 import cache  # Import your cache module
 
-from api_interfaces.otx_api import OTXAPI
-
+from filter_checks.block_check import get_block_status
+from filter_checks.hash_check import check_file_hash_in_db
+from filter_checks.mime_check import check_mime_type_in_db
+from filter_checks.db_utils import query_database
+from filter_checks.redirects import get_redirect_proxy, is_tls_excluded
 # Load environment variables from the .env file
 load_dotenv()
 
-api_provider = OTXAPI()
 
 require_auth = ResourceProtector()
-
-
 
 auth0_domain = os.getenv("AUTH0_DOMAIN")
 auth0_audience = os.getenv("AUTH0_AUDIENCE")
@@ -41,28 +39,13 @@ if not auth0_domain or not auth0_audience:
     raise ValueError("AUTH0_DOMAIN and AUTH0_AUDIENCE must be set in the environment variables.")
 
 validator = Auth0JWTBearerTokenValidator(auth0_domain, auth0_audience)
-
-
-
 require_auth.register_token_validator(validator)
-
-
 app = Flask(__name__)
 CORS(app, origins=["http://localhost:3000"])
-
-
-
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
-
-
 DB_PATH = "url_filter.db"  # Path to SQLite database
-
-OTX_API_KEY = os.getenv('OTX_API_KEY')  # Retrieve the API key from the .env file
-OTX_API_URL = 'https://otx.alienvault.com/api/v1/indicators/domain/{}/general'  # OTX API URL for domain check
-OTX_API_URL_HASH = 'https://otx.alienvault.com/api/v1/indicators/file/{}/analysis'
 log_db = LogDB()  # Create an instance of the LogDB class for logging
-
 
 def require_roles(roles):
     """ A decorator to check if the user has the required roles in the token """
@@ -116,83 +99,7 @@ def normalize_url(url):
     parsed = urlparse(url)
     return f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
 
-def query_database(query, params=()):
-    """Executes a database query and returns the first result."""
-    try:
-        with sqlite3.connect(DB_PATH) as conn:
-            cursor = conn.cursor()
-            cursor.execute(query, params)
-            return cursor.fetchone()
-    except sqlite3.Error as e:
-        logging.error(f"Database error: {e}")
-        return None
 
-def get_block_status(url):
-    """Checks if a URL is blocked based on database rules and OTX."""
-    hostname = urlparse(url).netloc
-    domain = get_domain(url)
-
-    # Check against local database first
-    checks = [
-        ("SELECT value FROM blocked_urls WHERE type = 'url_prefix' AND ? LIKE value || '%'", (url,), 'Blocked by URL prefix'),
-        ("SELECT value FROM blocked_urls WHERE type = 'hostname' AND value = ?", (hostname,), 'Blocked by exact hostname'),
-        ("SELECT value FROM blocked_urls WHERE type = 'domain' AND value = ?", (domain,), 'Blocked by domain (includes subdomains)'),
-    ]
-
-    for query, params, message in checks:
-        if query_database(query, params):
-            return {'status': 'blocked', 'message': message}
-
-    # Check OTX for IOC (Indicator of Compromise)
-    ioc_status =  api_provider.check_domain(hostname)
-    logging.info(f"Domain {hostname} isioc status {ioc_status}.")
-    if ioc_status and ioc_status.get('verdict') != 'Whitelisted':
-        # If it's an IOC and not whitelisted, block the request
-        return {'status': 'blocked', 'message': 'Domain is an IOC (Indicator of Compromise)'}
-
-    category_status = check_category_action(hostname)
-    if category_status:
-        return category_status
-
-    return None  # Not blocked
-
-
-def get_redirect_proxy(url):
-    """Fetch the proxy for a redirected URL from the database."""
-    hostname = urlparse(url).netloc
-    domain = get_domain(url)
-
-    queries = [
-        ("SELECT proxy FROM redirect_urls WHERE type = 'url_prefix' AND ? LIKE value || '%'", (url,)),
-        ("SELECT proxy FROM redirect_urls WHERE type = 'hostname' AND value = ?", (hostname,)),
-        ("SELECT proxy FROM redirect_urls WHERE type = 'domain' AND value = ?", (domain,)),
-    ]
-
-    for query, params in queries:
-        result = query_database(query, params)
-        if result:
-            return result[0]
-
-    return None  # No redirect match found
-
-def is_tls_excluded(hostname):
-    """Checks if a hostname should be excluded from TLS interception."""
-    return query_database("SELECT hostname FROM tls_excluded_hosts WHERE hostname = ?", (hostname,)) is not None
-
-
-def check_file_hash_in_db(file_hash):
-    """Check if a file hash is blocked in the local database or flagged in OTX."""
-    # First, check in the local database
-    result = query_database("SELECT value FROM blocked_files WHERE file_hash = ?", (file_hash,))
-    if result:
-        return {'status': 'blocked', 'message': 'Blocked file hash (database)'}
-
-    # If not found locally, check with AlienVault OTX
-    otx_result = api_provider.check_hash(file_hash)
-    if otx_result:
-        return {'status': 'blocked', 'message': 'Malicious file hash detected in OTX', 'details': otx_result}
-
-    return None  # Not blofcked
 
 @app.route('/checkHash', methods=['POST'])
 @require_auth(["user"])
@@ -278,11 +185,7 @@ def process_url_check(url):
 
     return jsonify({'status': 'allowed', 'message': 'Access granted'}), 200
 
-def check_mime_type_in_db(mime_type):
-    result = query_database("SELECT value FROM blocked_mimetypes WHERE value = ?", (mime_type,))
-    if result:
-        return {'status': 'blocked', 'message': 'Blocked MIME type'}
-    return None
+
 
 @app.route('/checkMimeType', methods=['POST'])
 @require_auth(["user"])
