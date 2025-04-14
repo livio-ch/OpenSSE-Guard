@@ -50,7 +50,6 @@ def send_request_to_api(payload,header=None):
         ctx.log.error(f"Flask head: {header}")
         ctx.log.error(f"Flask head: {payload}")
 
-
         response = requests.post(API_URL, json=payload, headers=header, timeout=5)
         response.raise_for_status()  # Raise exception for HTTP errors
         return response.json()
@@ -82,7 +81,7 @@ def send_request_to_api(payload,header=None):
         ctx.log.error(f"Error contacting Flask API: {e}")
         return {"status": "error", "details": "Request failed"}
 
-        
+
 
 def tls_clienthello(flow):
     """Handles TLS interception logic by checking with Flask API."""
