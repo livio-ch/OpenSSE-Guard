@@ -213,6 +213,7 @@ def get_policy():
         'blocked_mimetypes': ['value'],
         'redirect_urls': ['type', 'value' , 'proxy'],
         'tls_excluded_hosts': ['hostname'],
+        'category_policy': ['category_id','name','action'],
     }
 
     # Validate the requested table name

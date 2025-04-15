@@ -19,6 +19,7 @@ const Policy = () => {
     { label: "Blocked MIME Types", value: "blocked_mimetypes" },
     { label: "Redirect URLs", value: "redirect_urls" },
     { label: "TLS Excluded Hosts", value: "tls_excluded_hosts" },
+    { label: "Category Policy", value: "category_policy" },
   ];
 
   const fetchData = async () => {
@@ -55,6 +56,10 @@ const Policy = () => {
           formattedRow.proxy = row[2];
         } else if (table === "tls_excluded_hosts") {
           formattedRow.hostname = row[0];
+        } else if (table === "category_policy") {
+          formattedRow.category_id = row[0];
+          formattedRow.name = row[1];
+          formattedRow.action = row[2];
         }
         return formattedRow;
       });
