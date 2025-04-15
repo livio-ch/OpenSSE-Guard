@@ -17,7 +17,6 @@ from authlib.integrations.flask_oauth2 import ResourceProtector
 from validator import Auth0JWTBearerTokenValidator
 from functools import wraps
 import base64
-from category_check import check_category_action
 import cache  # Import your cache module
 from filter_checks.block_check import get_block_status
 from filter_checks.hash_check import check_file_hash_in_db
