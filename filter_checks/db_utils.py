@@ -15,3 +15,17 @@ def query_database(query, params=()):
     except sqlite3.Error as e:
         logging.error(f"Database error: {e}")
         return None
+
+def load_category_policy():
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT category_id, name, action FROM category_policy")
+            rows = cursor.fetchall()
+            return {
+                category_id: {"name": name, "action": action}
+                for category_id, name, action in rows
+            }
+    except sqlite3.Error as e:
+        logging.error(f"Error loading category policy: {e}")
+        return {}

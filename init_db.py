@@ -40,12 +40,16 @@ def init_db():
             value TEXT
         );
 
-
         CREATE TABLE IF NOT EXISTS blocked_mimetypes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             value TEXT NOT NULL UNIQUE
         );
 
+        CREATE TABLE IF NOT EXISTS category_policy (
+            category_id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            action TEXT NOT NULL  -- 'allowed' or 'blocked'
+        );
 
     ''')
 
