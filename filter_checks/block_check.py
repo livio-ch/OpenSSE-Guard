@@ -2,7 +2,7 @@ import logging
 from urllib.parse import urlparse
 import tldextract
 
-from category_check import check_category_action
+from filter_checks.category_check import check_category_action
 from api_interfaces.otx_api import OTXAPI
 from utils.url_utils import get_domain
 from .db_utils import query_database  # Hilfsfunktion, siehe unten
