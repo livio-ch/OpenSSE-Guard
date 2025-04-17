@@ -4,6 +4,7 @@ import logging
 import json
 import threading
 
+
 # Constants
 DB_PATH = "cache.db"
 CACHE_TTL = 3600  # 1 hour
@@ -73,9 +74,7 @@ def get_cache(key):
         return None
 
 
-import sqlite3
-import json
-import logging
+
 
 def get_all_cache():
     """Retrieve all cache entries."""
