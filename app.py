@@ -80,6 +80,7 @@ def normalize_url(url):
 @require_roles(["user"])
 def check_file_and_url():
     """Check both file hash and URL for block status (local database + OTX)."""
+
     data = request.get_json()
     if "file_hash" not in data or "url" not in data:
         response =  jsonify({'status': 'error', 'message': 'Missing file_hash or url'}), 400

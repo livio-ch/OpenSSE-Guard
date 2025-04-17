@@ -6,7 +6,7 @@ import magic
 import hashlib
 import time
 from typing import Iterable, Union
-
+import json
 
 # Replace with your Flask API endpoint
 API_URL = "http://127.0.0.1:5000/checkUrl"
@@ -90,7 +90,7 @@ def tls_clienthello(flow):
         ctx.log.info("No SNI found; proceeding with TLS interception.")
         return
             # Directly ignore connection for specific hosts without token check
-    if host in ["dev-qq26bf68b4ogkwa7.us.auth0.com", "localhost:3000", "192.168.182.1:3000"]:
+    if host in ["dev-qq26bf68b4ogkwa7.us.auth0.com", "cdn.auth0.com", "localhost:3000", "192.168.182.1:3000"]:
         ctx.log.info(f"Directly excluding TLS decryption for {host} as it is a known host.")
         return
     token = get_and_check_token(flow)  # Use the function to get and check the token
@@ -117,7 +117,7 @@ def request(flow: http.HTTPFlow):
 
     # Directly ignore connection for specific hosts without token check
 
-    if host in ["dev-qq26bf68b4ogkwa7.us.auth0.com", "localhost", "192.168.182.1"]:
+    if host in ["dev-qq26bf68b4ogkwa7.us.auth0.com", "cdn.auth0.com", "localhost", "192.168.182.1"]:
         ctx.log.info(f"Directly excluding request for {host} as it is a known host.")
         #flow.ignore_connection = True
         return
@@ -128,6 +128,7 @@ def request(flow: http.HTTPFlow):
         return
 
     # Token found, proceed with API request
+
     headers = {"Authorization": f"Bearer {token}",
         "Content-Type": "application/json"}
 
@@ -205,25 +206,37 @@ FLOWURL = ""
 
 #TODO where we had a bug lets check that later.
 
-def old_responseheaders(flow: mitmproxy.http.HTTPFlow):
+def responseheaders(flow: mitmproxy.http.HTTPFlow):
     """Check if the response is streamable and set stream response handler."""
 #    if "content-disposition" in flow.response.headers or "application/octet-stream" in flow.response.headers.get("content-type", ""):
-#        ctx.log.info("Setting response bodmd5tream")
-    global first_round, HASH_SHA256, FLOWURL, DELAY
-    DELAY = 1
-    HASH_SHA256  =  hashlib.sha256()
-    HASH_MD5  =  hashlib.md5()
-    first_round = True
-    FLOWURL =  flow.request.url
+##        ctx.log.info("Setting response bodmd5tream")
+    excluded_urls = [
+        "https://dev-qq26bf68b4ogkwa7.us.auth0.com/oauth/token"
+    ]
+    if any(excluded_url in flow.request.url for excluded_url in excluded_urls):
+        # If the URL is excluded, do not set the streaming handler
+        ctx.log.info(f"Skipping stream for URL: {flow.request.url}")
+        return  # Skip setting the stream handler
+
+
+    flow.metadata["DELAY"] = 1
+    flow.metadata["HASH_SHA256"] = hashlib.sha256()
+    flow.metadata["HASH_MD5"] = hashlib.md5()
+    flow.metadata["first_round"] = True
+    flow.metadata["FLOWURL"] = flow.request.url
+    flow.metadata["accumulated_data"] = bytearray()
     # Remove Content-Length header if present
-    if "content-length" in flow.response.headers:
-        del flow.response.headers["content-length"]
+    if flow.response.http_version == "HTTP/1.1":
+        if "content-length" in flow.response.headers:
+            del flow.response.headers["content-length"]
         flow.response.headers["transfer-encoding"] = "chunked"
-        print(f"Removed Content-Length header for {FLOWURL}")
 
-    flow.response.stream = stream_response  # Set the stream_response function to handle the response
 
-import json
+
+    def modify_with_flow(data: bytes) -> Iterable[bytes]:
+        return modify(flow, data)
+    flow.response.stream = modify_with_flow  # Set the stream_response function to handle the response
+
 
 def response(flow: http.HTTPFlow):
     """Intercepts and processes responses from the Auth0 OAuth token endpoint."""
@@ -231,51 +244,57 @@ def response(flow: http.HTTPFlow):
     ctx.log.info(f"Intercepted response: {url}")
 
     # Check if the response is from the Auth0 OAuth token endpoint
+    # Check if the response is from the Auth0 OAuth token endpoint
     if "https://dev-qq26bf68b4ogkwa7.us.auth0.com/oauth/token" in url:
-        # Here you can log the response or modify it if necessary
         ctx.log.info(f"Intercepted OAuth token response: {url}")
-
-        # Log the response status and body
         ctx.log.info(f"Response status code: {flow.response.status_code}")
-        ctx.log.info(f"Response body: {flow.response.text}")
+        ctx.log.info(f"Response content: {flow.response.content}")
 
-        # If the response is successful (status code 200), proceed
-        if flow.response.status_code == 200:
-            # Try to extract the JSON response
+        # Try to directly access the content if it's available
+        if flow.response.content:
             try:
-                response_data = flow.response.json()  # Get JSON body
-
-                # Extract the access_token
+                response_data = json.loads(flow.response.content.decode('utf-8'))
                 if "access_token" in response_data:
                     access_token = response_data["access_token"]
                     ctx.log.info(f"Access Token intercepted: {access_token}")
-
-                    # Write only the access_token to the /tmp/mitm_token.txt file
                     with open("mitm_token.txt", "w") as f:
                         f.write(access_token)
-
             except json.JSONDecodeError as e:
                 ctx.log.error(f"Failed to decode JSON response: {e}")
-
         # Optionally, you can modify the response here if necessary
         # Example: flow.response.set_text(str(response_data)) if you want to modify the response body
 
 
-def stream_response(flow: bytes) -> Iterable[bytes]:
-    global accumulated_data, first_round, counter, full_data, HASH_SHA256, FLOWURL, DELAY  # Access global variables
-    accumulated_data.extend(flow)  # Add the new flow data to the accumulated data
-    HASH_SHA256.update(flow)
-    HASH_MD5.update(flow)
+def modify(flow: http.HTTPFlow, data: bytes) -> Iterable[bytes]:
+#    flow = ctx.flow  # Get the current flow object
 
-    if flow == b'':
+    # Accessing flow metadata to track state
+    accumulated_data = flow.metadata["accumulated_data"]
+    HASH_SHA256 = flow.metadata["HASH_SHA256"]
+    HASH_MD5 = flow.metadata["HASH_MD5"]
+    first_round = flow.metadata["first_round"]
+    FLOWURL = flow.metadata["FLOWURL"]
+    DELAY = flow.metadata["DELAY"]
+
+    url = flow.request.pretty_url
+
+
+    accumulated_data.extend(data)  # Add the new flow data to the accumulated data
+    HASH_SHA256.update(data)
+    HASH_MD5.update(data)
+    print(f"First 10 bytes: {data[:10]}")
+    if data == b'':
         print("Stream finished (empty chunk received).")
         print(HASH_SHA256.hexdigest())
         print(HASH_MD5.hexdigest())
-        data = {
+        datajson = {
             "file_hash": HASH_SHA256.hexdigest(),
             "url": FLOWURL
         }
-        response = requests.post(API_URL_HASH, json=data)
+        token = get_and_check_token(flow)
+        headers = {"Authorization": f"Bearer {token}",
+            "Content-Type": "application/json"}
+        response = requests.post(API_URL_HASH, json=datajson, headers=headers)
         response_data = response.json()
         if response_data.get("status") == "blocked":
             print("Blocked:", response_data["message"])
@@ -283,18 +302,21 @@ def stream_response(flow: bytes) -> Iterable[bytes]:
             yield b''
         else:
             print("Allowed:", response_data["message"])
-
-        yield accumulated_data
+            yield accumulated_data
+        accumulated_data = bytearray()  # Reset accumulated data after yielding
     else:
         # First round, determine the file type
         if first_round:
-            rtype = get_real_file_type(flow)
+            rtype = get_real_file_type(data)
             #print(f"File type detected: {rtype}")
-            data = {
+            datajson = {
                 "mime_type": rtype,
                 "url": FLOWURL
             }
-            response = requests.post(API_URL_MIME, json=data)
+            token = get_and_check_token(flow)
+            headers = {"Authorization": f"Bearer {token}",
+                "Content-Type": "application/json"}
+            response = requests.post(API_URL_MIME, json=datajson, headers=headers)
             response_data = response.json()
             if response_data.get("status") == "blocked":
                 print("Blocked:", response_data["message"])
@@ -303,11 +325,13 @@ def stream_response(flow: bytes) -> Iterable[bytes]:
             else:
                 print("Allowed:", response_data["message"])
             first_round = False  # Set flag to false after first round
+            flow.metadata["first_round"] = False
             DELAY = DELAY - 1
-            return ""
-        if DELAY > 0: #yield chunks later wait 1 more round.
+            #yield b''
+        elif DELAY > 0: #yield chunks later wait 1 more round.
             DELAY = DELAY -1
-            return ""
-        chunk = accumulated_data[:BUFFER_SIZE]
-        accumulated_data = accumulated_data[BUFFER_SIZE:]
-        yield chunk
+            #yield b''
+        else:
+            chunk = accumulated_data[:BUFFER_SIZE]
+            accumulated_data = accumulated_data[BUFFER_SIZE:]
+            yield chunk
