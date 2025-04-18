@@ -17,8 +17,18 @@ API_URL_MIME = "http://127.0.0.1:5000/checkMimeType"
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 
+
+
+_cached_token = None
+_token_timestamp = 0
+TOKEN_TTL = 300  # seconds
+
 def get_and_check_token(flow=None):
     """Check if the auth token is present and handle redirect if not."""
+    global _cached_token, _token_timestamp
+    now = time.time()
+    if _cached_token and (now - _token_timestamp < TOKEN_TTL):
+        return _cached_token
     try:
         # Try to read token from a file or other source
         with open("mitm_token.txt", "r") as f:
@@ -40,15 +50,19 @@ def get_and_check_token(flow=None):
     return None  # Return None if no token
 
 
-
+def get_auth_headers(flow):
+    token = get_and_check_token(flow)
+    if not token:
+        return None
+    return {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
 
 
 def send_request_to_api(payload,header=None):
     """Helper function to send a request to the Flask API and handle responses."""
     try:
-        ctx.log.error(f"Flask API: {API_URL}")
-        ctx.log.error(f"Flask head: {header}")
-        ctx.log.error(f"Flask head: {payload}")
+        ctx.log.debug(f"Flask API: {API_URL}")
+        ctx.log.debug(f"Flask head: {header}")
+        ctx.log.debug(f"Flask head: {payload}")
 
         response = requests.post(API_URL, json=payload, headers=header, timeout=5)
         response.raise_for_status()  # Raise exception for HTTP errors
@@ -77,9 +91,7 @@ def send_request_to_api(payload,header=None):
 
         return {"status": "error", "details": f"HTTP error {status_code}"}
 
-    except requests.exceptions.RequestException as e:
-        ctx.log.error(f"Error contacting Flask API: {e}")
-        return {"status": "error", "details": "Request failed"}
+
 
 
 
@@ -99,8 +111,7 @@ def tls_clienthello(flow):
         return
 
     # Token found, proceed with API request
-    headers = {"Authorization": f"Bearer {token}",
-            "Content-Type": "application/json"}
+    headers = get_auth_headers(flow)
 
     data = send_request_to_api({"host": host},headers)
     if data.get("status") == "exclude-tls":
@@ -129,8 +140,7 @@ def request(flow: http.HTTPFlow):
 
     # Token found, proceed with API request
 
-    headers = {"Authorization": f"Bearer {token}",
-        "Content-Type": "application/json"}
+    headers = get_auth_headers(flow)
 
 
 
@@ -187,10 +197,10 @@ def send_error_response(flow):
         500, b"Proxy error", {"Content-Type": "text/plain"}
     )
 
+MAGIC_MIME = magic.Magic(mime=True)
 def get_real_file_type(chunk):
     """Detects the actual file type using magic."""
-    magic_obj = magic.Magic(mime=True)
-    return magic_obj.from_buffer(chunk)
+    return MAGIC_MIME.from_buffer(chunk)
 
 
 accumulated_data = bytearray()  # Initialize the accumulated data
@@ -292,10 +302,15 @@ def modify(flow: http.HTTPFlow, data: bytes) -> Iterable[bytes]:
             "url": FLOWURL
         }
         token = get_and_check_token(flow)
-        headers = {"Authorization": f"Bearer {token}",
-            "Content-Type": "application/json"}
-        response = requests.post(API_URL_HASH, json=datajson, headers=headers)
-        response_data = response.json()
+        headers = get_auth_headers(flow)
+
+        try:
+            response = requests.post(API_URL_HASH, json=datajson, headers=headers)
+            response_data = response.json()
+        except requests.RequestException as e:
+            ctx.log.error(f"Error in hash API call: {e}")
+            yield accumulated_data  # fallback to letting it through
+            return
         if response_data.get("status") == "blocked":
             print("Blocked:", response_data["message"])
             accumulated_data = bytearray()
@@ -314,8 +329,8 @@ def modify(flow: http.HTTPFlow, data: bytes) -> Iterable[bytes]:
                 "url": FLOWURL
             }
             token = get_and_check_token(flow)
-            headers = {"Authorization": f"Bearer {token}",
-                "Content-Type": "application/json"}
+            headers = get_auth_headers(flow)
+
             response = requests.post(API_URL_MIME, json=datajson, headers=headers)
             response_data = response.json()
             if response_data.get("status") == "blocked":
@@ -326,12 +341,14 @@ def modify(flow: http.HTTPFlow, data: bytes) -> Iterable[bytes]:
                 print("Allowed:", response_data["message"])
             first_round = False  # Set flag to false after first round
             flow.metadata["first_round"] = False
-            DELAY = DELAY - 1
+            DELAY -= 1
+            flow.metadata["DELAY"] = DELAY
             #yield b''
         elif DELAY > 0: #yield chunks later wait 1 more round.
-            DELAY = DELAY -1
+            DELAY -= 1
+            flow.metadata["DELAY"] = DELAY
             #yield b''
         else:
             chunk = accumulated_data[:BUFFER_SIZE]
-            accumulated_data = accumulated_data[BUFFER_SIZE:]
+            flow.metadata["accumulated_data"] = accumulated_data[BUFFER_SIZE:]
             yield chunk
