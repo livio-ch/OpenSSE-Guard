@@ -13,6 +13,12 @@ API_URL = "http://127.0.0.1:5000/checkUrl"
 API_URL_HASH = "http://127.0.0.1:5000/checkHash"
 API_URL_MIME = "http://127.0.0.1:5000/checkMimeType"
 
+
+EXCLUDED_HOSTS_TLS = {"dev-qq26bf68b4ogkwa7.us.auth0.com", "cdn.auth0.com", "localhost:3000", "192.168.182.1:3000"}
+EXCLUDED_HOSTS_REQUEST = {"dev-qq26bf68b4ogkwa7.us.auth0.com", "cdn.auth0.com", "localhost", "192.168.182.1"}
+EXCLUDED_STREAM_URLS = {"https://dev-qq26bf68b4ogkwa7.us.auth0.com/oauth/token"}
+
+
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
@@ -102,7 +108,7 @@ def tls_clienthello(flow):
         ctx.log.info("No SNI found; proceeding with TLS interception.")
         return
             # Directly ignore connection for specific hosts without token check
-    if host in ["dev-qq26bf68b4ogkwa7.us.auth0.com", "cdn.auth0.com", "localhost:3000", "192.168.182.1:3000"]:
+    if host in EXCLUDED_HOSTS_TLS:
         ctx.log.info(f"Directly excluding TLS decryption for {host} as it is a known host.")
         return
     token = get_and_check_token(flow)  # Use the function to get and check the token
@@ -128,7 +134,7 @@ def request(flow: http.HTTPFlow):
 
     # Directly ignore connection for specific hosts without token check
 
-    if host in ["dev-qq26bf68b4ogkwa7.us.auth0.com", "cdn.auth0.com", "localhost", "192.168.182.1"]:
+    if host in EXCLUDED_HOSTS_REQUEST:
         ctx.log.info(f"Directly excluding request for {host} as it is a known host.")
         #flow.ignore_connection = True
         return
@@ -220,10 +226,8 @@ def responseheaders(flow: mitmproxy.http.HTTPFlow):
     """Check if the response is streamable and set stream response handler."""
 #    if "content-disposition" in flow.response.headers or "application/octet-stream" in flow.response.headers.get("content-type", ""):
 ##        ctx.log.info("Setting response bodmd5tream")
-    excluded_urls = [
-        "https://dev-qq26bf68b4ogkwa7.us.auth0.com/oauth/token"
-    ]
-    if any(excluded_url in flow.request.url for excluded_url in excluded_urls):
+
+    if any(excluded_url in flow.request.url for excluded_url in EXCLUDED_STREAM_URLS):
         # If the URL is excluded, do not set the streaming handler
         ctx.log.info(f"Skipping stream for URL: {flow.request.url}")
         return  # Skip setting the stream handler
